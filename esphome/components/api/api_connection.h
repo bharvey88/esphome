@@ -9,8 +9,12 @@
 #include "esphome/core/application.h"
 #include "esphome/core/component.h"
 #include "esphome/core/entity_base.h"
+#include "esphome/core/helpers.h"
+#include "esphome/core/log.h"
 
 #include <vector>
+#include <map>
+#include <string>
 
 namespace esphome {
 namespace api {
@@ -63,6 +67,9 @@ class APIConnection : public APIServerConnection {
  public:
   APIConnection(std::unique_ptr<socket::Socket> socket, APIServer *parent);
   virtual ~APIConnection();
+
+  // Use the APISectionStats from api_frame_helper.h to avoid duplication
+  using APISectionStats = ::esphome::api::APISectionStats;
 
   void start();
   void loop();
@@ -556,6 +563,14 @@ class APIConnection : public APIServerConnection {
   InitialStateIterator initial_state_iterator_;
   ListEntitiesIterator list_entities_iterator_;
   int state_subs_at_ = -1;
+
+  // API loop section performance statistics
+  std::map<std::string, APISectionStats> section_stats_;
+  uint32_t stats_log_interval_{60000};  // 60 seconds default
+  uint32_t next_stats_log_{0};
+  bool stats_enabled_{true};
+  void log_section_stats_();
+  void reset_section_stats_();
 };
 
 }  // namespace api

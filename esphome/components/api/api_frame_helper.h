@@ -14,9 +14,70 @@
 #include "api_noise_context.h"
 #include "esphome/components/socket/socket.h"
 #include "esphome/core/application.h"
+#include <map>
+#include <string>
 
 namespace esphome {
 namespace api {
+
+// Forward declaration from api_connection.h
+class APIConnection;
+
+// Stats class definition (copied from api_connection.h to avoid circular dependency)
+class APISectionStats {
+ public:
+  APISectionStats()
+      : period_count_(0),
+        total_count_(0),
+        period_time_ms_(0),
+        total_time_ms_(0),
+        period_max_time_ms_(0),
+        total_max_time_ms_(0) {}
+
+  void record_time(uint32_t duration_ms) {
+    // Update period counters
+    this->period_count_++;
+    this->period_time_ms_ += duration_ms;
+    if (duration_ms > this->period_max_time_ms_)
+      this->period_max_time_ms_ = duration_ms;
+
+    // Update total counters
+    this->total_count_++;
+    this->total_time_ms_ += duration_ms;
+    if (duration_ms > this->total_max_time_ms_)
+      this->total_max_time_ms_ = duration_ms;
+  }
+
+  void reset_period_stats() {
+    this->period_count_ = 0;
+    this->period_time_ms_ = 0;
+    this->period_max_time_ms_ = 0;
+  }
+
+  // Getters for period stats
+  uint32_t get_period_count() const { return this->period_count_; }
+  uint32_t get_period_time_ms() const { return this->period_time_ms_; }
+  uint32_t get_period_max_time_ms() const { return this->period_max_time_ms_; }
+  float get_period_avg_time_ms() const {
+    return this->period_count_ > 0 ? static_cast<float>(this->period_time_ms_) / this->period_count_ : 0.0f;
+  }
+
+  // Getters for total stats
+  uint32_t get_total_count() const { return this->total_count_; }
+  uint32_t get_total_time_ms() const { return this->total_time_ms_; }
+  uint32_t get_total_max_time_ms() const { return this->total_max_time_ms_; }
+  float get_total_avg_time_ms() const {
+    return this->total_count_ > 0 ? static_cast<float>(this->total_time_ms_) / this->total_count_ : 0.0f;
+  }
+
+ private:
+  uint32_t period_count_;
+  uint32_t total_count_;
+  uint32_t period_time_ms_;
+  uint32_t total_time_ms_;
+  uint32_t period_max_time_ms_;
+  uint32_t total_max_time_ms_;
+};
 
 class ProtoWriteBuffer;
 
@@ -86,6 +147,8 @@ class APIFrameHelper {
   }
   // Give this helper a name for logging
   void set_log_info(std::string info) { info_ = std::move(info); }
+  // Set stats collection for detailed timing
+  void set_section_stats(std::map<std::string, APISectionStats> *stats) { section_stats_ = stats; }
   virtual APIError write_protobuf_packet(uint16_t type, ProtoWriteBuffer buffer) = 0;
   // Get the frame header padding required by this protocol
   virtual uint8_t frame_header_padding() = 0;
@@ -161,6 +224,9 @@ class APIFrameHelper {
 
   // Common initialization for both plaintext and noise protocols
   APIError init_common_();
+
+  // Stats collection pointer - shared from APIConnection
+  std::map<std::string, APISectionStats> *section_stats_{nullptr};
 };
 
 #ifdef USE_API_NOISE

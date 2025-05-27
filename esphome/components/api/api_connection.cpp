@@ -3,6 +3,9 @@
 #include <cerrno>
 #include <cinttypes>
 #include <utility>
+#include <algorithm>
+#include <map>
+#include <string>
 #include "esphome/components/network/util.h"
 #include "esphome/core/application.h"
 #include "esphome/core/entity_base.h"
@@ -85,6 +88,9 @@ void APIConnection::start() {
   // This ensures the first ping happens after the keepalive period
   this->next_ping_retry_ = this->last_traffic_ + KEEPALIVE_TIMEOUT_MS;
 
+  // Pass stats collection to the helper for detailed timing
+  this->helper_->set_section_stats(&this->section_stats_);
+
   APIError err = this->helper_->init();
   if (err != APIError::OK) {
     on_fatal_error();
@@ -111,6 +117,9 @@ APIConnection::~APIConnection() {
 }
 
 void APIConnection::loop() {
+  // Measure total time for entire loop function
+  const uint32_t loop_start_time = millis();
+
   if (this->remove_)
     return;
 
@@ -128,15 +137,30 @@ void APIConnection::loop() {
     return;
   }
 
+  const uint32_t now = millis();
+  uint32_t start_time;
+  uint32_t duration;
+
+  // Section: Helper Loop
+  start_time = millis();
   APIError err = this->helper_->loop();
+  duration = millis() - start_time;
+  this->section_stats_["helper_loop"].record_time(duration);
+
   if (err != APIError::OK) {
     on_fatal_error();
     ESP_LOGW(TAG, "%s: Socket operation failed: %s errno=%d", this->client_combined_info_.c_str(),
              api_error_to_str(err), errno);
     return;
   }
+
+  // Section: Read Packet
+  start_time = millis();
   ReadPacketBuffer buffer;
   err = this->helper_->read_packet(&buffer);
+  duration = millis() - start_time;
+  this->section_stats_["read_packet"].record_time(duration);
+
   if (err == APIError::WOULD_BLOCK) {
     // pass
   } else if (err != APIError::OK) {
@@ -152,28 +176,42 @@ void APIConnection::loop() {
     return;
   } else {
     this->last_traffic_ = App.get_loop_component_start_time();
-    // read a packet
+
+    // Section: Process Message
+    start_time = millis();
     if (buffer.data_len > 0) {
       this->read_message(buffer.data_len, buffer.type, &buffer.container[buffer.data_offset]);
     } else {
       this->read_message(0, buffer.type, nullptr);
     }
+    duration = millis() - start_time;
+    this->section_stats_["process_message"].record_time(duration);
+
     if (this->remove_)
       return;
   }
 
+  // Section: Process Queue
+  start_time = millis();
   if (!this->deferred_message_queue_.empty() && this->helper_->can_write_without_blocking()) {
     this->deferred_message_queue_.process_queue();
   }
+  duration = millis() - start_time;
+  this->section_stats_["process_queue"].record_time(duration);
 
+  // Section: Iterator Advance
+  start_time = millis();
   if (!this->list_entities_iterator_.completed())
     this->list_entities_iterator_.advance();
   if (!this->initial_state_iterator_.completed() && this->list_entities_iterator_.completed())
     this->initial_state_iterator_.advance();
+  duration = millis() - start_time;
+  this->section_stats_["iterator_advance"].record_time(duration);
 
+  // Section: Keepalive
+  start_time = millis();
   static uint8_t max_ping_retries = 60;
   static uint16_t ping_retry_interval = 1000;
-  const uint32_t now = App.get_loop_component_start_time();
   if (this->sent_ping_) {
     // Disconnect if not responded within 2.5*keepalive
     if (now - this->last_traffic_ > (KEEPALIVE_TIMEOUT_MS * 5) / 2) {
@@ -199,8 +237,12 @@ void APIConnection::loop() {
       }
     }
   }
+  duration = millis() - start_time;
+  this->section_stats_["keepalive"].record_time(duration);
 
 #ifdef USE_ESP32_CAMERA
+  // Section: Camera
+  start_time = millis();
   if (this->image_reader_.available() && this->helper_->can_write_without_blocking()) {
     // Message will use 8 more bytes than the minimum size, and typical
     // MTU is 1500. Sometimes users will see as low as 1460 MTU.
@@ -239,8 +281,12 @@ void APIConnection::loop() {
       this->image_reader_.return_image();
     }
   }
+  duration = millis() - start_time;
+  this->section_stats_["camera"].record_time(duration);
 #endif
 
+  // Section: State Subscriptions
+  start_time = millis();
   if (state_subs_at_ != -1) {
     const auto &subs = this->parent_->get_state_subs();
     if (state_subs_at_ >= (int) subs.size()) {
@@ -256,6 +302,24 @@ void APIConnection::loop() {
       }
     }
   }
+  duration = millis() - start_time;
+  this->section_stats_["state_subs"].record_time(duration);
+
+  // Log stats periodically
+  if (this->stats_enabled_) {
+    // If next_stats_log_ is 0, initialize it
+    if (this->next_stats_log_ == 0) {
+      this->next_stats_log_ = now + this->stats_log_interval_;
+    } else if (now >= this->next_stats_log_) {
+      this->log_section_stats_();
+      this->reset_section_stats_();
+      this->next_stats_log_ = now + this->stats_log_interval_;
+    }
+  }
+
+  // Record total loop execution time
+  const uint32_t total_loop_duration = millis() - loop_start_time;
+  this->section_stats_["total_loop"].record_time(total_loop_duration);
 }
 
 std::string get_default_unique_id(const std::string &component_type, EntityBase *entity) {
@@ -1632,8 +1696,14 @@ bool APIConnection::try_to_clear_buffer(bool log_out_of_space) {
     return false;
   if (this->helper_->can_write_without_blocking())
     return true;
+
+  // Track try_to_clear_buffer time
+  const uint32_t start_time = millis();
   delay(0);
   APIError err = this->helper_->loop();
+  const uint32_t duration = millis() - start_time;
+  this->section_stats_["try_to_clear_buffer"].record_time(duration);
+
   if (err != APIError::OK) {
     on_fatal_error();
     ESP_LOGW(TAG, "%s: Socket operation failed: %s errno=%d", this->client_combined_info_.c_str(),
@@ -1648,11 +1718,17 @@ bool APIConnection::try_to_clear_buffer(bool log_out_of_space) {
   return false;
 }
 bool APIConnection::send_buffer(ProtoWriteBuffer buffer, uint32_t message_type) {
+  // Track send_buffer time
+  const uint32_t start_time = millis();
+
   if (!this->try_to_clear_buffer(message_type != 29)) {  // SubscribeLogsResponse
     return false;
   }
 
+  uint32_t write_start = millis();
   APIError err = this->helper_->write_protobuf_packet(message_type, buffer);
+  uint32_t write_duration = millis() - write_start;
+  this->section_stats_["write_packet"].record_time(write_duration);
   if (err == APIError::WOULD_BLOCK)
     return false;
   if (err != APIError::OK) {
@@ -1665,6 +1741,11 @@ bool APIConnection::send_buffer(ProtoWriteBuffer buffer, uint32_t message_type) 
     }
     return false;
   }
+
+  // Measure total send_buffer function time
+  uint32_t total_duration = millis() - start_time;
+  this->section_stats_["send_buffer_total"].record_time(total_duration);
+
   // Do not set last_traffic_ on send
   return true;
 }
@@ -1679,6 +1760,90 @@ void APIConnection::on_no_setup_connection() {
 void APIConnection::on_fatal_error() {
   this->helper_->close();
   this->remove_ = true;
+}
+
+void APIConnection::log_section_stats_() {
+  const char *STATS_TAG = "api.stats";
+  ESP_LOGI(STATS_TAG, "Logging API section stats now (current time: %" PRIu32 ", scheduled time: %" PRIu32 ")",
+           millis(), this->next_stats_log_);
+  ESP_LOGI(STATS_TAG, "Stats collection status: enabled=%d, sections=%zu", this->stats_enabled_,
+           this->section_stats_.size());
+
+  // Check if we have minimal data
+  bool has_data = false;
+  for (const auto &it : this->section_stats_) {
+    if (it.second.get_period_count() > 0) {
+      has_data = true;
+      break;
+    }
+  }
+
+  if (has_data) {
+    size_t helper_count = 0;
+    size_t read_count = 0;
+    size_t total_count = 0;
+    if (this->section_stats_.count("helper_loop") > 0)
+      helper_count = this->section_stats_["helper_loop"].get_period_count();
+    if (this->section_stats_.count("read_packet") > 0)
+      read_count = this->section_stats_["read_packet"].get_period_count();
+    if (this->section_stats_.count("total_loop") > 0)
+      total_count = this->section_stats_["total_loop"].get_period_count();
+
+    ESP_LOGI(STATS_TAG, "Record count for key sections: helper_loop=%zu, read_packet=%zu, total_loop=%zu", helper_count,
+             read_count, total_count);
+  }
+
+  ESP_LOGI(STATS_TAG, "API Connection Section Runtime Statistics");
+  ESP_LOGI(STATS_TAG, "Period stats (last %" PRIu32 "ms):", this->stats_log_interval_);
+
+  // First collect stats we want to display
+  std::vector<std::pair<std::string, const APISectionStats *>> stats_to_display;
+
+  for (const auto &it : this->section_stats_) {
+    const APISectionStats &stats = it.second;
+    if (stats.get_period_count() > 0) {
+      stats_to_display.push_back({it.first, &stats});
+    }
+  }
+
+  // Sort by period runtime (descending)
+  std::sort(stats_to_display.begin(), stats_to_display.end(), [](const auto &a, const auto &b) {
+    return a.second->get_period_time_ms() > b.second->get_period_time_ms();
+  });
+
+  // Log top components by period runtime
+  for (const auto &it : stats_to_display) {
+    const std::string &section = it.first;
+    const APISectionStats *stats = it.second;
+
+    ESP_LOGI(STATS_TAG, "  %s: count=%" PRIu32 ", avg=%.2fms, max=%" PRIu32 "ms, total=%" PRIu32 "ms", section.c_str(),
+             stats->get_period_count(), stats->get_period_avg_time_ms(), stats->get_period_max_time_ms(),
+             stats->get_period_time_ms());
+  }
+
+  // Log total stats since boot
+  ESP_LOGI(STATS_TAG, "Total stats (since boot):");
+
+  // Re-sort by total runtime for all-time stats
+  std::sort(stats_to_display.begin(), stats_to_display.end(),
+            [](const auto &a, const auto &b) { return a.second->get_total_time_ms() > b.second->get_total_time_ms(); });
+
+  for (const auto &it : stats_to_display) {
+    const std::string &section = it.first;
+    const APISectionStats *stats = it.second;
+
+    ESP_LOGI(STATS_TAG, "  %s: count=%" PRIu32 ", avg=%.2fms, max=%" PRIu32 "ms, total=%" PRIu32 "ms", section.c_str(),
+             stats->get_total_count(), stats->get_total_avg_time_ms(), stats->get_total_max_time_ms(),
+             stats->get_total_time_ms());
+  }
+
+  ESP_LOGD(STATS_TAG, "Resetting API section stats, sections count: %zu", this->section_stats_.size());
+}
+
+void APIConnection::reset_section_stats_() {
+  for (auto &it : this->section_stats_) {
+    it.second.reset_period_stats();
+  }
 }
 
 }  // namespace api

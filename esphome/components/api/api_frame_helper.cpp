@@ -111,7 +111,12 @@ APIError APIFrameHelper::write_raw_(const struct iovec *iov, int iovcnt) {
   }
 
   // Try to send directly if no buffered data
+  uint32_t write_start = millis();
   ssize_t sent = this->socket_->writev(iov, iovcnt);
+  uint32_t write_duration = millis() - write_start;
+  if (write_duration > 0 && section_stats_) {
+    (*section_stats_)["write_packet.socket_writev"].record_time(write_duration);
+  }
 
   if (sent == -1) {
     if (errno == EWOULDBLOCK || errno == EAGAIN) {
@@ -160,7 +165,12 @@ APIError APIFrameHelper::try_send_tx_buf_() {
     SendBuffer &front_buffer = this->tx_buf_.front();
 
     // Try to send the remaining data in this buffer
+    uint32_t write_start = millis();
     ssize_t sent = this->socket_->write(front_buffer.current_data(), front_buffer.remaining());
+    uint32_t write_duration = millis() - write_start;
+    if (write_duration > 0 && section_stats_) {
+      (*section_stats_)["send_buffer_total.socket_write"].record_time(write_duration);
+    }
 
     if (sent == -1) {
       if (errno != EWOULDBLOCK && errno != EAGAIN) {
@@ -316,7 +326,12 @@ APIError APINoiseFrameHelper::try_read_frame_(ParsedFrame *frame) {
   if (rx_header_buf_len_ < 3) {
     // no header information yet
     uint8_t to_read = 3 - rx_header_buf_len_;
+    uint32_t socket_start = millis();
     ssize_t received = this->socket_->read(&rx_header_buf_[rx_header_buf_len_], to_read);
+    uint32_t socket_duration = millis() - socket_start;
+    if (socket_duration > 0 && section_stats_) {
+      (*section_stats_)["read_packet.socket_read_header"].record_time(socket_duration);
+    }
     if (received == -1) {
       if (errno == EWOULDBLOCK || errno == EAGAIN) {
         return APIError::WOULD_BLOCK;
@@ -357,13 +372,23 @@ APIError APINoiseFrameHelper::try_read_frame_(ParsedFrame *frame) {
 
   // reserve space for body
   if (rx_buf_.size() != msg_size) {
+    uint32_t resize_start = millis();
     rx_buf_.resize(msg_size);
+    uint32_t resize_duration = millis() - resize_start;
+    if (resize_duration > 0 && section_stats_) {
+      (*section_stats_)["read_packet.buffer_resize"].record_time(resize_duration);
+    }
   }
 
   if (rx_buf_len_ < msg_size) {
     // more data to read
     uint16_t to_read = msg_size - rx_buf_len_;
+    uint32_t socket_start = millis();
     ssize_t received = this->socket_->read(&rx_buf_[rx_buf_len_], to_read);
+    uint32_t socket_duration = millis() - socket_start;
+    if (socket_duration > 0 && section_stats_) {
+      (*section_stats_)["read_packet.socket_read_body"].record_time(socket_duration);
+    }
     if (received == -1) {
       if (errno == EWOULDBLOCK || errno == EAGAIN) {
         return APIError::WOULD_BLOCK;
@@ -559,7 +584,15 @@ void APINoiseFrameHelper::send_explicit_handshake_reject_(const std::string &rea
 APIError APINoiseFrameHelper::read_packet(ReadPacketBuffer *buffer) {
   int err;
   APIError aerr;
+  uint32_t start_time, duration;
+
+  // Track state_action timing
+  start_time = millis();
   aerr = state_action_();
+  duration = millis() - start_time;
+  if (duration > 0 && section_stats_) {
+    (*section_stats_)["read_packet.state_action"].record_time(duration);
+  }
   if (aerr != APIError::OK) {
     return aerr;
   }
@@ -568,15 +601,27 @@ APIError APINoiseFrameHelper::read_packet(ReadPacketBuffer *buffer) {
     return APIError::WOULD_BLOCK;
   }
 
+  // Track frame reading timing
+  start_time = millis();
   ParsedFrame frame;
   aerr = try_read_frame_(&frame);
+  duration = millis() - start_time;
+  if (duration > 0 && section_stats_) {
+    (*section_stats_)["read_packet.try_read_frame"].record_time(duration);
+  }
   if (aerr != APIError::OK)
     return aerr;
 
+  // Track decryption timing
+  start_time = millis();
   NoiseBuffer mbuf;
   noise_buffer_init(mbuf);
   noise_buffer_set_inout(mbuf, frame.msg.data(), frame.msg.size(), frame.msg.size());
   err = noise_cipherstate_decrypt(recv_cipher_, &mbuf);
+  duration = millis() - start_time;
+  if (duration > 0 && section_stats_) {
+    (*section_stats_)["read_packet.decrypt"].record_time(duration);
+  }
   if (err != 0) {
     state_ = State::FAILED;
     HELPER_LOG("noise_cipherstate_decrypt failed: %s", noise_err_to_str(err).c_str());
@@ -846,7 +891,12 @@ APIError APIPlaintextFrameHelper::try_read_frame_(ParsedFrame *frame) {
     // there is no data on the wire (which is the common case).
     // This results in faster failure detection compared to
     // attempting to read multiple bytes at once.
+    uint32_t socket_start = millis();
     ssize_t received = this->socket_->read(&data, 1);
+    uint32_t socket_duration = millis() - socket_start;
+    if (socket_duration > 0 && section_stats_) {
+      (*section_stats_)["read_packet.socket_read_header"].record_time(socket_duration);
+    }
     if (received == -1) {
       if (errno == EWOULDBLOCK || errno == EAGAIN) {
         return APIError::WOULD_BLOCK;
@@ -936,13 +986,23 @@ APIError APIPlaintextFrameHelper::try_read_frame_(ParsedFrame *frame) {
 
   // reserve space for body
   if (rx_buf_.size() != rx_header_parsed_len_) {
+    uint32_t resize_start = millis();
     rx_buf_.resize(rx_header_parsed_len_);
+    uint32_t resize_duration = millis() - resize_start;
+    if (resize_duration > 0 && section_stats_) {
+      (*section_stats_)["read_packet.buffer_resize"].record_time(resize_duration);
+    }
   }
 
   if (rx_buf_len_ < rx_header_parsed_len_) {
     // more data to read
     uint16_t to_read = rx_header_parsed_len_ - rx_buf_len_;
+    uint32_t socket_start = millis();
     ssize_t received = this->socket_->read(&rx_buf_[rx_buf_len_], to_read);
+    uint32_t socket_duration = millis() - socket_start;
+    if (socket_duration > 0 && section_stats_) {
+      (*section_stats_)["read_packet.socket_read_body"].record_time(socket_duration);
+    }
     if (received == -1) {
       if (errno == EWOULDBLOCK || errno == EAGAIN) {
         return APIError::WOULD_BLOCK;
@@ -976,13 +1036,20 @@ APIError APIPlaintextFrameHelper::try_read_frame_(ParsedFrame *frame) {
 }
 APIError APIPlaintextFrameHelper::read_packet(ReadPacketBuffer *buffer) {
   APIError aerr;
+  uint32_t start_time, duration;
 
   if (state_ != State::DATA) {
     return APIError::WOULD_BLOCK;
   }
 
+  // Track frame reading timing
+  start_time = millis();
   ParsedFrame frame;
   aerr = try_read_frame_(&frame);
+  duration = millis() - start_time;
+  if (duration > 0 && section_stats_) {
+    (*section_stats_)["read_packet.try_read_frame"].record_time(duration);
+  }
   if (aerr != APIError::OK) {
     if (aerr == APIError::BAD_INDICATOR) {
       // Make sure to tell the remote that we don't
