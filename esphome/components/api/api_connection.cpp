@@ -154,41 +154,37 @@ void APIConnection::loop() {
     return;
   }
 
-  // Section: Read Packet
-  start_time = millis();
-  ReadPacketBuffer buffer;
-  err = this->helper_->read_packet(&buffer);
-  duration = millis() - start_time;
-  this->section_stats_["read_packet"].record_time(duration);
-
-  if (err == APIError::WOULD_BLOCK) {
-    // pass
-  } else if (err != APIError::OK) {
-    on_fatal_error();
-    if (err == APIError::SOCKET_READ_FAILED && errno == ECONNRESET) {
-      ESP_LOGW(TAG, "%s: Connection reset", this->client_combined_info_.c_str());
-    } else if (err == APIError::CONNECTION_CLOSED) {
-      ESP_LOGW(TAG, "%s: Connection closed", this->client_combined_info_.c_str());
-    } else {
-      ESP_LOGW(TAG, "%s: Reading failed: %s errno=%d", this->client_combined_info_.c_str(), api_error_to_str(err),
-               errno);
-    }
-    return;
-  } else {
-    this->last_traffic_ = App.get_loop_component_start_time();
-
-    // Section: Process Message
+  // Check if socket has data ready before attempting to read
+  if (this->helper_->is_socket_ready()) {
     start_time = millis();
-    if (buffer.data_len > 0) {
-      this->read_message(buffer.data_len, buffer.type, &buffer.container[buffer.data_offset]);
-    } else {
-      this->read_message(0, buffer.type, nullptr);
-    }
+    ReadPacketBuffer buffer;
+    err = this->helper_->read_packet(&buffer);
     duration = millis() - start_time;
-    this->section_stats_["process_message"].record_time(duration);
-
-    if (this->remove_)
+    this->section_stats_["read_packet"].record_time(duration);
+    if (err == APIError::WOULD_BLOCK) {
+      // pass
+    } else if (err != APIError::OK) {
+      on_fatal_error();
+      if (err == APIError::SOCKET_READ_FAILED && errno == ECONNRESET) {
+        ESP_LOGW(TAG, "%s: Connection reset", this->client_combined_info_.c_str());
+      } else if (err == APIError::CONNECTION_CLOSED) {
+        ESP_LOGW(TAG, "%s: Connection closed", this->client_combined_info_.c_str());
+      } else {
+        ESP_LOGW(TAG, "%s: Reading failed: %s errno=%d", this->client_combined_info_.c_str(), api_error_to_str(err),
+                 errno);
+      }
       return;
+    } else {
+      this->last_traffic_ = App.get_loop_component_start_time();
+      // read a packet
+      if (buffer.data_len > 0) {
+        this->read_message(buffer.data_len, buffer.type, &buffer.container[buffer.data_offset]);
+      } else {
+        this->read_message(0, buffer.type, nullptr);
+      }
+      if (this->remove_)
+        return;
+    }
   }
 
   // Section: Process Queue

@@ -317,11 +317,6 @@ APIError APINoiseFrameHelper::try_read_frame_(ParsedFrame *frame) {
     return APIError::BAD_ARG;
   }
 
-  // Check if socket has data available before attempting to read
-  if (!socket_->ready()) {
-    return APIError::WOULD_BLOCK;
-  }
-
   // read header
   if (rx_header_buf_len_ < 3) {
     // no header information yet
@@ -877,11 +872,6 @@ APIError APIPlaintextFrameHelper::try_read_frame_(ParsedFrame *frame) {
   if (frame == nullptr) {
     HELPER_LOG("Bad argument for try_read_frame_");
     return APIError::BAD_ARG;
-  }
-
-  // Check if socket has data available before attempting to read
-  if (!socket_->ready()) {
-    return APIError::WOULD_BLOCK;
   }
 
   // read header
