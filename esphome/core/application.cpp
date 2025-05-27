@@ -7,7 +7,7 @@
 #include "esphome/components/status_led/status_led.h"
 #endif
 
-#ifdef FD_SETSIZE
+#if defined(FD_SETSIZE) && !defined(USE_SOCKET_IMPL_LWIP_TCP)
 #include <cerrno>
 #ifdef USE_ESP32
 #include <sys/select.h>
@@ -122,7 +122,7 @@ void Application::loop() {
     next_schedule = std::max(next_schedule, delay_time / 2);
     delay_time = std::min(next_schedule, delay_time);
 
-#ifdef FD_SETSIZE
+#if defined(FD_SETSIZE) && !defined(USE_SOCKET_IMPL_LWIP_TCP)
     if (!this->socket_fds_.empty()) {
       // Use select() with timeout when we have sockets to monitor
 
@@ -238,7 +238,7 @@ bool Application::register_socket_fd(int fd) {
   if (fd < 0)
     return false;
 
-#ifdef FD_SETSIZE
+#if defined(FD_SETSIZE) && !defined(USE_SOCKET_IMPL_LWIP_TCP)
   if (fd >= FD_SETSIZE) {
     ESP_LOGE(TAG, "Cannot monitor socket fd %d: exceeds FD_SETSIZE (%d)", fd, FD_SETSIZE);
     ESP_LOGE(TAG, "Socket will not be monitored for data - may cause performance issues!");
@@ -277,7 +277,7 @@ bool Application::is_socket_ready(int fd) const {
   // This function is thread-safe for reading the result of select()
   // However, it should only be called after select() has been executed in the main loop
   // The read_fds_ is only modified by select() in the main loop
-#ifdef FD_SETSIZE
+#if defined(FD_SETSIZE) && !defined(USE_SOCKET_IMPL_LWIP_TCP)
   if (fd < 0 || fd >= FD_SETSIZE)
     return false;
 
