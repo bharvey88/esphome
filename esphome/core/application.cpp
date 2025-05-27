@@ -142,10 +142,18 @@ void Application::loop() {
           }
         }
         this->socket_fds_changed_ = false;
+        // When socket list changes, we need to copy the new base_read_fds_
+        this->read_fds_is_cleared_ = false;
       }
 
-      // Copy base fd_set before each select
-      this->read_fds_ = this->base_read_fds_;
+      // Copy base fd_set only if necessary
+      // If read_fds_ is already cleared (all zeros), we can skip the copy
+      // We only need to copy if:
+      // 1. Socket list changed (handled above)
+      // 2. read_fds_ contains set bits from previous select
+      if (!this->read_fds_is_cleared_) {
+        this->read_fds_ = this->base_read_fds_;
+      }
 
       // Convert delay_time (milliseconds) to timeval
       struct timeval tv;
@@ -174,11 +182,17 @@ void Application::loop() {
           ESP_LOGW(TAG, "select() failed with errno %d", errno);
           delay(delay_time);
         }
+        // Error case - assume we need to copy next time
+        this->read_fds_is_cleared_ = false;
       } else if (ret > 0) {
         ESP_LOGVV(TAG, "select() woke early: %d socket(s) ready (saved up to %ums)", ret, delay_time);
+        // Some fds were ready - read_fds_ has set bits, we'll need to copy next time
+        this->read_fds_is_cleared_ = false;
       } else {
         // ret == 0: timeout occurred (normal)
         ESP_LOGVV(TAG, "select() timeout after %ums (no sockets ready)", delay_time);
+        // Timeout clears all bits in read_fds_ - we can skip the copy next time
+        this->read_fds_is_cleared_ = true;
       }
     } else {
       // No sockets registered, use regular delay
