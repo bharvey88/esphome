@@ -585,7 +585,7 @@ class Application {
   std::set<int> socket_fds_;        // Set of all monitored socket file descriptors
   bool socket_fds_changed_{false};  // Flag to rebuild base_read_fds_ when socket_fds_ changes
   int max_fd_{-1};                  // Highest file descriptor number for select()
-#if defined(FD_SETSIZE) && !defined(USE_SOCKET_IMPL_LWIP_TCP)
+#if (defined(USE_SOCKET_IMPL_LWIP_SOCKETS) || defined(USE_SOCKET_IMPL_BSD_SOCKETS)) && defined(FD_SETSIZE)
   fd_set base_read_fds_{};  // Cached fd_set rebuilt only when socket_fds_ changes
   fd_set read_fds_{};       // Working fd_set for select(), copied from base_read_fds_
 #endif
