@@ -17,6 +17,7 @@ bool Socket::ready() const {
     return true;
   }
 
+#if (defined(USE_SOCKET_IMPL_LWIP_SOCKETS) || defined(USE_SOCKET_IMPL_BSD_SOCKETS)) && defined(FD_SETSIZE)
   // For loop-monitored sockets, check with the Application's select() results
   int fd = this->get_fd();
   if (fd < 0) {
@@ -25,6 +26,11 @@ bool Socket::ready() const {
   }
 
   return App.is_socket_ready(fd);
+#else
+  // Without select() support, we can't monitor sockets in the loop
+  // Always return true (assume data may be available)
+  return true;
+#endif
 }
 
 std::unique_ptr<Socket> socket_ip(int type, int protocol) {

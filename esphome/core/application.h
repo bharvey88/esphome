@@ -482,6 +482,7 @@ class Application {
   Scheduler scheduler;
 
   /// Register/unregister a socket file descriptor to be monitored for read events.
+#if (defined(USE_SOCKET_IMPL_LWIP_SOCKETS) || defined(USE_SOCKET_IMPL_BSD_SOCKETS)) && defined(FD_SETSIZE)
   /// These functions update the fd_set used by select() in the main loop.
   /// WARNING: These functions are NOT thread-safe. They must only be called from the main loop.
   /// NOTE: File descriptors >= FD_SETSIZE (typically 10 on ESP) will be rejected with an error.
@@ -491,6 +492,7 @@ class Application {
   /// Check if there's data available on a socket without blocking
   /// This function is thread-safe for reading, but should be called after select() has run
   bool is_socket_ready(int fd) const;
+#endif
 
  protected:
   friend Component;

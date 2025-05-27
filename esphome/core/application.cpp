@@ -247,19 +247,18 @@ void Application::calculate_looping_components_() {
   }
 }
 
+#if (defined(USE_SOCKET_IMPL_LWIP_SOCKETS) || defined(USE_SOCKET_IMPL_BSD_SOCKETS)) && defined(FD_SETSIZE)
 bool Application::register_socket_fd(int fd) {
   // WARNING: This function is NOT thread-safe and must only be called from the main loop
   // It modifies socket_fds_ and related variables without locking
   if (fd < 0)
     return false;
 
-#if (defined(USE_SOCKET_IMPL_LWIP_SOCKETS) || defined(USE_SOCKET_IMPL_BSD_SOCKETS)) && defined(FD_SETSIZE)
   if (fd >= FD_SETSIZE) {
     ESP_LOGE(TAG, "Cannot monitor socket fd %d: exceeds FD_SETSIZE (%d)", fd, FD_SETSIZE);
     ESP_LOGE(TAG, "Socket will not be monitored for data - may cause performance issues!");
     return false;
   }
-#endif
 
   this->socket_fds_.insert(fd);
   this->socket_fds_changed_ = true;
@@ -292,16 +291,12 @@ bool Application::is_socket_ready(int fd) const {
   // This function is thread-safe for reading the result of select()
   // However, it should only be called after select() has been executed in the main loop
   // The read_fds_ is only modified by select() in the main loop
-#if (defined(USE_SOCKET_IMPL_LWIP_SOCKETS) || defined(USE_SOCKET_IMPL_BSD_SOCKETS)) && defined(FD_SETSIZE)
   if (fd < 0 || fd >= FD_SETSIZE)
     return false;
 
   return FD_ISSET(fd, &this->read_fds_);
-#else
-  // If we don't have select support, assume socket is always ready
-  return true;
-#endif
 }
+#endif
 
 Application App;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
