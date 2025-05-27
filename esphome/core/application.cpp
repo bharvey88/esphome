@@ -161,8 +161,7 @@ void Application::loop() {
       tv.tv_usec = (delay_time % 1000) * 1000;
 
       // Call select with timeout
-#if defined(USE_ESP8266) || defined(USE_SOCKET_IMPL_LWIP_SOCKETS) || \
-    (defined(USE_ESP32) && defined(USE_SOCKET_IMPL_BSD_SOCKETS))
+#if defined(USE_SOCKET_IMPL_LWIP_SOCKETS) || (defined(USE_ESP32) && defined(USE_SOCKET_IMPL_BSD_SOCKETS))
       // Use lwip_select() on platforms with lwIP - it's faster
       // Note: On ESP32 with BSD sockets, select() is already mapped to lwip_select() via macros,
       // but we explicitly call lwip_select() for clarity and to ensure we get the optimized version
