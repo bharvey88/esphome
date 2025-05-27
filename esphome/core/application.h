@@ -11,6 +11,10 @@
 #include "esphome/core/runtime_stats.h"
 #include "esphome/core/scheduler.h"
 
+#ifdef USE_SOCKET_SELECT_SUPPORT
+#include <sys/select.h>
+#endif
+
 #ifdef USE_BINARY_SENSOR
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #endif
