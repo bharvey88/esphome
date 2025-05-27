@@ -10,13 +10,20 @@
 #if defined(FD_SETSIZE) && !defined(USE_SOCKET_IMPL_LWIP_TCP)
 #include <cerrno>
 #ifdef USE_ESP32
+// ESP32 with BSD sockets actually uses lwIP underneath
+#ifdef USE_SOCKET_IMPL_BSD_SOCKETS
+#include <lwip/sockets.h>
+#else
 #include <sys/select.h>
+#endif
 #elif defined(USE_ESP8266)
 #include <sys/time.h>
 #include <sys/types.h>
 extern "C" {
 #include <lwip/sockets.h>
 }
+#elif defined(USE_SOCKET_IMPL_LWIP_SOCKETS)
+#include <lwip/sockets.h>
 #else
 #include <sys/select.h>
 #endif
@@ -146,7 +153,16 @@ void Application::loop() {
       tv.tv_usec = (delay_time % 1000) * 1000;
 
       // Call select with timeout
+#if defined(USE_ESP8266) || defined(USE_SOCKET_IMPL_LWIP_SOCKETS) || \
+    (defined(USE_ESP32) && defined(USE_SOCKET_IMPL_BSD_SOCKETS))
+      // Use lwip_select() on platforms with lwIP - it's faster
+      // Note: On ESP32 with BSD sockets, select() is already mapped to lwip_select() via macros,
+      // but we explicitly call lwip_select() for clarity and to ensure we get the optimized version
+      int ret = lwip_select(this->max_fd_ + 1, &this->read_fds_, nullptr, nullptr, &tv);
+#else
+      // Use standard select() on other platforms (e.g., host/native builds)
       int ret = ::select(this->max_fd_ + 1, &this->read_fds_, nullptr, nullptr, &tv);
+#endif
 
       if (ret < 0) {
         if (errno == EINTR) {
