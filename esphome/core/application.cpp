@@ -9,23 +9,19 @@
 
 #ifdef USE_SOCKET_SELECT_SUPPORT
 #include <cerrno>
+
+#ifdef USE_SOCKET_IMPL_LWIP_SOCKETS
+// LWIP sockets implementation
+#include <lwip/sockets.h>
+#elif defined(USE_SOCKET_IMPL_BSD_SOCKETS)
+// BSD sockets implementation
 #ifdef USE_ESP32
-// ESP32 with BSD sockets actually uses lwIP underneath
-#ifdef USE_SOCKET_IMPL_BSD_SOCKETS
+// ESP32 "BSD sockets" are actually LWIP under the hood
 #include <lwip/sockets.h>
 #else
+// True BSD sockets (e.g., host platform)
 #include <sys/select.h>
 #endif
-#elif defined(USE_ESP8266)
-#include <sys/time.h>
-#include <sys/types.h>
-extern "C" {
-#include <lwip/sockets.h>
-}
-#elif defined(USE_SOCKET_IMPL_LWIP_SOCKETS)
-#include <lwip/sockets.h>
-#else
-#include <sys/select.h>
 #endif
 #endif
 
