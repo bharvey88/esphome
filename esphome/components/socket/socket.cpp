@@ -17,7 +17,7 @@ bool Socket::ready() const {
     return true;
   }
 
-#if (defined(USE_SOCKET_IMPL_LWIP_SOCKETS) || defined(USE_SOCKET_IMPL_BSD_SOCKETS)) && defined(FD_SETSIZE)
+#ifdef USE_SOCKET_SELECT_SUPPORT
   // For loop-monitored sockets, check with the Application's select() results
   int fd = this->get_fd();
   if (fd < 0) {

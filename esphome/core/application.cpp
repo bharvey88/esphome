@@ -7,7 +7,7 @@
 #include "esphome/components/status_led/status_led.h"
 #endif
 
-#if (defined(USE_SOCKET_IMPL_LWIP_SOCKETS) || defined(USE_SOCKET_IMPL_BSD_SOCKETS)) && defined(FD_SETSIZE)
+#ifdef USE_SOCKET_SELECT_SUPPORT
 #include <cerrno>
 #ifdef USE_ESP32
 // ESP32 with BSD sockets actually uses lwIP underneath
@@ -129,7 +129,7 @@ void Application::loop() {
     next_schedule = std::max(next_schedule, delay_time / 2);
     delay_time = std::min(next_schedule, delay_time);
 
-#if (defined(USE_SOCKET_IMPL_LWIP_SOCKETS) || defined(USE_SOCKET_IMPL_BSD_SOCKETS)) && defined(FD_SETSIZE)
+#ifdef USE_SOCKET_SELECT_SUPPORT
     if (!this->socket_fds_.empty()) {
       // Use select() with timeout when we have sockets to monitor
 
@@ -247,7 +247,7 @@ void Application::calculate_looping_components_() {
   }
 }
 
-#if (defined(USE_SOCKET_IMPL_LWIP_SOCKETS) || defined(USE_SOCKET_IMPL_BSD_SOCKETS)) && defined(FD_SETSIZE)
+#ifdef USE_SOCKET_SELECT_SUPPORT
 bool Application::register_socket_fd(int fd) {
   // WARNING: This function is NOT thread-safe and must only be called from the main loop
   // It modifies socket_fds_ and related variables without locking

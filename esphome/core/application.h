@@ -482,7 +482,7 @@ class Application {
   Scheduler scheduler;
 
   /// Register/unregister a socket file descriptor to be monitored for read events.
-#if (defined(USE_SOCKET_IMPL_LWIP_SOCKETS) || defined(USE_SOCKET_IMPL_BSD_SOCKETS)) && defined(FD_SETSIZE)
+#ifdef USE_SOCKET_SELECT_SUPPORT
   /// These functions update the fd_set used by select() in the main loop.
   /// WARNING: These functions are NOT thread-safe. They must only be called from the main loop.
   /// NOTE: File descriptors >= FD_SETSIZE (typically 10 on ESP) will be rejected with an error.
@@ -577,7 +577,7 @@ class Application {
   const char *compilation_time_{nullptr};
   bool name_add_mac_suffix_;
   uint32_t last_loop_{0};
-#if (defined(USE_SOCKET_IMPL_LWIP_SOCKETS) || defined(USE_SOCKET_IMPL_BSD_SOCKETS)) && defined(FD_SETSIZE)
+#ifdef USE_SOCKET_SELECT_SUPPORT
   uint32_t loop_interval_{21};  // Increased interval when select() is available for better efficiency
 #else
   uint32_t loop_interval_{16};  // Standard interval for platforms without select()
@@ -587,7 +587,7 @@ class Application {
   Component *current_component_{nullptr};
   uint32_t loop_component_start_time_{0};
 
-#if (defined(USE_SOCKET_IMPL_LWIP_SOCKETS) || defined(USE_SOCKET_IMPL_BSD_SOCKETS)) && defined(FD_SETSIZE)
+#ifdef USE_SOCKET_SELECT_SUPPORT
   // Socket select management
   std::set<int> socket_fds_;        // Set of all monitored socket file descriptors
   bool socket_fds_changed_{false};  // Flag to rebuild base_read_fds_ when socket_fds_ changes

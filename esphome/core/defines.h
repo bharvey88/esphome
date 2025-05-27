@@ -7,6 +7,11 @@
 
 #include "esphome/core/macros.h"
 
+// Define a shorter macro for socket select support
+#if (defined(USE_SOCKET_IMPL_LWIP_SOCKETS) || defined(USE_SOCKET_IMPL_BSD_SOCKETS)) && defined(FD_SETSIZE)
+#define USE_SOCKET_SELECT_SUPPORT
+#endif
+
 // Informative flags
 #define ESPHOME_BOARD "dummy_board"
 #define ESPHOME_PROJECT_NAME "dummy project"
