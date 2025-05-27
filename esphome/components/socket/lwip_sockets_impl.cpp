@@ -55,14 +55,14 @@ class LwIPSocketImpl : public Socket {
   }
   int connect(const struct sockaddr *addr, socklen_t addrlen) override { return lwip_connect(fd_, addr, addrlen); }
   std::unique_ptr<Socket> accept(struct sockaddr *addr, socklen_t *addrlen) override {
-    return accept_impl(addr, addrlen, false);
+    return accept_impl_(addr, addrlen, false);
   }
   std::unique_ptr<Socket> accept_loop_monitored(struct sockaddr *addr, socklen_t *addrlen) override {
-    return accept_impl(addr, addrlen, true);
+    return accept_impl_(addr, addrlen, true);
   }
 
  private:
-  std::unique_ptr<Socket> accept_impl(struct sockaddr *addr, socklen_t *addrlen, bool loop_monitored) {
+  std::unique_ptr<Socket> accept_impl_(struct sockaddr *addr, socklen_t *addrlen, bool loop_monitored) {
     int fd = lwip_accept(fd_, addr, addrlen);
     if (fd == -1)
       return {};
