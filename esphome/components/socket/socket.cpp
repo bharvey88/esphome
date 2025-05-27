@@ -12,12 +12,12 @@ namespace socket {
 Socket::~Socket() {}
 
 bool Socket::ready() const {
+#ifdef USE_SOCKET_SELECT_SUPPORT
   if (!loop_monitored_) {
     // Non-monitored sockets always return true (assume data may be available)
     return true;
   }
 
-#ifdef USE_SOCKET_SELECT_SUPPORT
   // For loop-monitored sockets, check with the Application's select() results
   int fd = this->get_fd();
   if (fd < 0) {

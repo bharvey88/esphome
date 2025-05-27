@@ -42,6 +42,7 @@ std::string format_sockaddr(const struct sockaddr_storage &storage) {
 class BSDSocketImpl : public Socket {
  public:
   BSDSocketImpl(int fd, bool monitor_loop = false) : fd_(fd) {
+#ifdef USE_SOCKET_SELECT_SUPPORT
     // Register new socket with the application for select() if monitoring requested
     if (monitor_loop && fd_ >= 0) {
       // Only set loop_monitored_ to true if registration succeeds
@@ -49,6 +50,10 @@ class BSDSocketImpl : public Socket {
     } else {
       loop_monitored_ = false;
     }
+#else
+    // Without select support, ignore monitor_loop parameter
+    (void) monitor_loop;
+#endif
   }
   ~BSDSocketImpl() override {
     if (!closed_) {
@@ -75,10 +80,12 @@ class BSDSocketImpl : public Socket {
   int bind(const struct sockaddr *addr, socklen_t addrlen) override { return ::bind(fd_, addr, addrlen); }
   int close() override {
     if (!closed_) {
+#ifdef USE_SOCKET_SELECT_SUPPORT
       // Unregister from select() before closing if monitored
       if (loop_monitored_) {
         App.unregister_socket_fd(fd_);
       }
+#endif
       int ret = ::close(fd_);
       closed_ = true;
       return ret;

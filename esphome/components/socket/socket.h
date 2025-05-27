@@ -59,7 +59,9 @@ class Socket {
   bool ready() const;
 
  protected:
+#ifdef USE_SOCKET_SELECT_SUPPORT
   bool loop_monitored_{false};  ///< Whether this socket is monitored by the event loop
+#endif
 };
 
 /// Create a socket of the given domain, type and protocol.
