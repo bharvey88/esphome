@@ -581,11 +581,7 @@ class Application {
   const char *compilation_time_{nullptr};
   bool name_add_mac_suffix_;
   uint32_t last_loop_{0};
-#ifdef USE_SOCKET_SELECT_SUPPORT
-  uint32_t loop_interval_{21};  // Increased interval when select() is available for better efficiency
-#else
   uint32_t loop_interval_{16};  // Standard interval for platforms without select()
-#endif
   size_t dump_config_at_{SIZE_MAX};
   uint32_t app_state_{0};
   Component *current_component_{nullptr};
