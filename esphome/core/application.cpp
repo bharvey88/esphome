@@ -2,6 +2,7 @@
 #include "esphome/core/log.h"
 #include "esphome/core/version.h"
 #include "esphome/core/hal.h"
+#include <algorithm>
 
 #ifdef USE_STATUS_LED
 #include "esphome/components/status_led/status_led.h"
@@ -256,7 +257,7 @@ bool Application::register_socket_fd(int fd) {
     return false;
   }
 
-  this->socket_fds_.insert(fd);
+  this->socket_fds_.push_back(fd);
   this->socket_fds_changed_ = true;
 
   if (fd > this->max_fd_) {
@@ -272,14 +273,24 @@ void Application::unregister_socket_fd(int fd) {
   if (fd < 0)
     return;
 
-  this->socket_fds_.erase(fd);
-  this->socket_fds_changed_ = true;
+  auto it = std::find(this->socket_fds_.begin(), this->socket_fds_.end(), fd);
+  if (it != this->socket_fds_.end()) {
+    // Swap with last element and pop - O(1) removal since order doesn't matter
+    if (it != this->socket_fds_.end() - 1) {
+      std::swap(*it, this->socket_fds_.back());
+    }
+    this->socket_fds_.pop_back();
+    this->socket_fds_changed_ = true;
 
-  // Recalculate max_fd if necessary
-  if (fd == this->max_fd_ && !this->socket_fds_.empty()) {
-    this->max_fd_ = *this->socket_fds_.rbegin();
-  } else if (this->socket_fds_.empty()) {
-    this->max_fd_ = -1;
+    // Only recalculate max_fd if we removed the current max
+    if (fd == this->max_fd_) {
+      if (this->socket_fds_.empty()) {
+        this->max_fd_ = -1;
+      } else {
+        // Find new max using std::max_element
+        this->max_fd_ = *std::max_element(this->socket_fds_.begin(), this->socket_fds_.end());
+      }
+    }
   }
 }
 

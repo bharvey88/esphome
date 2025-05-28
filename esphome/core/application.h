@@ -2,7 +2,6 @@
 
 #include <string>
 #include <vector>
-#include <set>
 #include "esphome/core/component.h"
 #include "esphome/core/defines.h"
 #include "esphome/core/hal.h"
@@ -589,7 +588,7 @@ class Application {
 
 #ifdef USE_SOCKET_SELECT_SUPPORT
   // Socket select management
-  std::set<int> socket_fds_;        // Set of all monitored socket file descriptors
+  std::vector<int> socket_fds_;     // Vector of all monitored socket file descriptors
   bool socket_fds_changed_{false};  // Flag to rebuild base_read_fds_ when socket_fds_ changes
   int max_fd_{-1};                  // Highest file descriptor number for select()
   fd_set base_read_fds_{};          // Cached fd_set rebuilt only when socket_fds_ changes
