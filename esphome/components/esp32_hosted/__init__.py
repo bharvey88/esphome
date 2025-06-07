@@ -1,10 +1,12 @@
 import os
 
 from esphome import pins
+import esphome.codegen as cg
 from esphome.components import esp32
 import esphome.config_validation as cv
 from esphome.const import (
     CONF_CLK_PIN,
+    CONF_ID,
     CONF_RESET_PIN,
     CONF_VARIANT,
     KEY_CORE,
@@ -13,6 +15,10 @@ from esphome.const import (
 from esphome.core import CORE
 
 CODEOWNERS = ["@swoboda1337"]
+AUTO_LOAD = ["esp32"]
+
+esp32_hosted_ns = cg.esphome_ns.namespace("esp32_hosted")
+ESP32Hosted = esp32_hosted_ns.class_("ESP32Hosted", cg.Component)
 
 CONF_ACTIVE_HIGH = "active_high"
 CONF_CMD_PIN = "cmd_pin"
@@ -22,9 +28,16 @@ CONF_D2_PIN = "d2_pin"
 CONF_D3_PIN = "d3_pin"
 CONF_SLOT = "slot"
 
+VARIANTS_WITHOUT_WIFI = {
+    esp32.VARIANT_ESP32H2,
+    esp32.VARIANT_ESP32P4,
+}
+
+
 CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
+            cv.GenerateID(): cv.declare_id(ESP32Hosted),
             cv.Required(CONF_VARIANT): cv.one_of(*esp32.VARIANTS, upper=True),
             cv.Optional(CONF_ACTIVE_HIGH, default=True): cv.boolean,
             cv.Required(CONF_CLK_PIN): pins.internal_gpio_output_pin_number,
@@ -41,6 +54,9 @@ CONFIG_SCHEMA = cv.All(
 
 
 async def to_code(config):
+    var = cg.new_Pvariable(config[CONF_ID])
+    await cg.register_component(var, config)
+
     framework_ver: cv.Version = CORE.data[KEY_CORE][KEY_FRAMEWORK_VERSION]
 
     if config[CONF_ACTIVE_HIGH]:
@@ -94,12 +110,13 @@ async def to_code(config):
 
     os.environ["ESP_IDF_VERSION"] = f"{framework_ver.major}.{framework_ver.minor}"
 
-    esp32.add_idf_component(
-        name="esp_wifi_remote",
-        repo="https://github.com/espressif/esp-wifi-remote.git",
-        path="components/esp_wifi_remote",
-        ref="wifi_remote-v0.10.2",
-    )
+    if config[CONF_VARIANT] not in VARIANTS_WITHOUT_WIFI:
+        esp32.add_idf_component(
+            name="esp_wifi_remote",
+            repo="https://github.com/espressif/esp-wifi-remote.git",
+            path="components/esp_wifi_remote",
+            ref="wifi_remote-v0.10.2",
+        )
 
     esp32.add_extra_script(
         "post",
