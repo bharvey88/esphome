@@ -7,6 +7,7 @@
 #include "esphome/core/hal.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/preferences.h"
+#include "esphome/core/runtime_stats.h"
 #include "esphome/core/scheduler.h"
 
 #ifdef USE_SOCKET_SELECT_SUPPORT
@@ -314,6 +315,18 @@ class Application {
 
   uint32_t get_loop_interval() const { return this->loop_interval_; }
 
+  /** Enable or disable runtime statistics collection.
+   *
+   * @param enable Whether to enable runtime statistics collection.
+   */
+  void set_runtime_stats_enabled(bool enable) { runtime_stats.set_enabled(enable); }
+
+  /** Set the interval at which runtime statistics are logged.
+   *
+   * @param interval The interval in milliseconds between logging of runtime statistics.
+   */
+  void set_runtime_stats_log_interval(uint32_t interval) { runtime_stats.set_log_interval(interval); }
+
   void schedule_dump_config() { this->dump_config_at_ = 0; }
 
   void feed_wdt(uint32_t time = 0);
@@ -575,7 +588,7 @@ class Application {
   void feed_wdt_arch_();
 
   /// Perform a delay while also monitoring socket file descriptors for readiness
-  void delay_with_select_(uint32_t delay_ms);
+  void yield_with_select_(uint32_t delay_ms);
 
   std::vector<Component *> components_{};
   std::vector<Component *> looping_components_{};

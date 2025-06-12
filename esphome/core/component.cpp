@@ -246,6 +246,9 @@ uint32_t WarnIfComponentBlockingGuard::finish() {
   uint32_t curr_time = millis();
 
   uint32_t blocking_time = curr_time - this->started_;
+
+  // Record component runtime stats
+  runtime_stats.record_component_time(this->component_, blocking_time, curr_time);
   bool should_warn;
   if (this->component_ != nullptr) {
     should_warn = this->component_->should_warn_of_blocking(blocking_time);
