@@ -374,22 +374,6 @@ void ESP32TouchComponent::loop() {
 
   // Always check touch status periodically
   if (should_print) {
-    uint32_t current_status = touch_pad_get_status();
-    uint32_t hal_status;
-    touch_ll_read_trigger_status_mask(&hal_status);
-
-    // Check if FSM is still in timer mode
-    touch_fsm_mode_t fsm_mode;
-    touch_pad_get_fsm_mode(&fsm_mode);
-
-    ESP_LOGD(TAG, "Current touch status: 0x%04x (HAL: 0x%04x), FSM: %s", current_status, hal_status,
-             fsm_mode == TOUCH_FSM_MODE_TIMER ? "TIMER" : "SW");
-
-    // Try a manual software trigger to see if measurements are working at all
-    if (current_status == 0 && hal_status == 0) {
-      ESP_LOGD(TAG, "No touch status, trying manual trigger...");
-      // touch_pad_sw_start();
-    }
     this->setup_mode_last_log_print_ = now;
   }
 
