@@ -427,19 +427,37 @@ void ESP32TouchComponent::loop() {
   const uint32_t now = App.get_loop_component_start_time();
   bool should_print = now - this->setup_mode_last_log_print_ > 1000;  // Log every second
 
-#if !defined(USE_ESP32_VARIANT_ESP32S2) && !defined(USE_ESP32_VARIANT_ESP32S3)
-  // For ESP32 in SW mode, we need to trigger measurements periodically
-  // Otherwise no interrupts will fire
-  static uint32_t last_sw_trigger = 0;
-  if (now - last_sw_trigger >= 50) {  // Trigger every 50ms (20Hz)
-    touch_pad_sw_start();
-    last_sw_trigger = now;
-  }
-#endif
+  // Always check touch status periodically
+  if (should_print) {
+    uint32_t current_status = touch_pad_get_status();
+    uint32_t hal_status;
+    touch_ll_read_trigger_status_mask(&hal_status);
 
-  if (this->setup_mode_ && should_print) {
-    ESP_LOGD(TAG, "Touch Pad '%s' (T%u): value=NA", this->children_[0]->get_name().c_str(),
-             this->children_[0]->get_touch_pad());
+    // Check if FSM is still in timer mode
+    touch_fsm_mode_t fsm_mode;
+    touch_pad_get_fsm_mode(&fsm_mode);
+
+    ESP_LOGD(TAG, "Current touch status: 0x%04x (HAL: 0x%04x), FSM: %s", current_status, hal_status,
+             fsm_mode == TOUCH_FSM_MODE_TIMER ? "TIMER" : "SW");
+
+    // Try a manual software trigger to see if measurements are working at all
+    if (current_status == 0 && hal_status == 0) {
+      ESP_LOGD(TAG, "No touch status, trying manual trigger...");
+      touch_pad_sw_start();
+    }
+
+    for (auto *child : this->children_) {
+      uint32_t value = this->component_touch_pad_read(child->get_touch_pad());
+      // Touch detection logic differs between ESP32 variants
+#if defined(USE_ESP32_VARIANT_ESP32S2) || defined(USE_ESP32_VARIANT_ESP32S3)
+      bool is_touched = value > child->get_threshold();
+#else
+      bool is_touched = value < child->get_threshold();
+#endif
+      ESP_LOGD(TAG, "Touch Pad '%s' (T%" PRIu32 "): value=%" PRIu32 ", threshold=%" PRIu32 ", touched=%s",
+               child->get_name().c_str(), (uint32_t) child->get_touch_pad(), value, child->get_threshold(),
+               is_touched ? "YES" : "NO");
+    }
     this->setup_mode_last_log_print_ = now;
   }
 
