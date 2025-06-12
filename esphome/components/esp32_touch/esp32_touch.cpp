@@ -426,19 +426,6 @@ void ESP32TouchComponent::loop() {
       ESP_LOGD(TAG, "No touch status, trying manual trigger...");
       // touch_pad_sw_start();
     }
-
-    for (auto *child : this->children_) {
-      uint32_t value = this->component_touch_pad_read(child->get_touch_pad());
-      // Touch detection logic differs between ESP32 variants
-#if defined(USE_ESP32_VARIANT_ESP32S2) || defined(USE_ESP32_VARIANT_ESP32S3)
-      bool is_touched = value > child->get_threshold();
-#else
-      bool is_touched = value < child->get_threshold();
-#endif
-      ESP_LOGD(TAG, "Touch Pad '%s' (T%" PRIu32 "): value=%" PRIu32 ", threshold=%" PRIu32 ", touched=%s",
-               child->get_name().c_str(), (uint32_t) child->get_touch_pad(), value, child->get_threshold(),
-               is_touched ? "YES" : "NO");
-    }
     this->setup_mode_last_log_print_ = now;
   }
 
