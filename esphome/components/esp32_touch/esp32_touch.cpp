@@ -7,10 +7,8 @@
 
 #include <cinttypes>
 
-#if !defined(USE_ESP32_VARIANT_ESP32S2) && !defined(USE_ESP32_VARIANT_ESP32S3)
-// For ESP32 classic, we need the low-level HAL functions for ISR-safe reads
+// Include HAL for ISR-safe touch reading on all variants
 #include "hal/touch_sensor_ll.h"
-#endif
 
 namespace esphome {
 namespace esp32_touch {
@@ -412,15 +410,9 @@ void IRAM_ATTR ESP32TouchComponent::touch_isr_handler(void *arg) {
       touch_pad_t pad = static_cast<touch_pad_t>(i);
       TouchPadEvent event;
       event.pad = pad;
-      // Read value in ISR
-      event.value = 0;
-#if defined(USE_ESP32_VARIANT_ESP32S2) || defined(USE_ESP32_VARIANT_ESP32S3)
-      touch_pad_read_raw_data(pad, &event.value);
-#else
-      // For ESP32, we need to use the low-level HAL function that doesn't use semaphores
-      // touch_pad_read() uses a semaphore internally and cannot be called from ISR
+      // Read value in ISR using HAL function (safe for all variants)
+      // touch_pad_read() and touch_pad_read_raw_data() use semaphores and cannot be called from ISR
       event.value = touch_ll_read_raw_data(pad);
-#endif
       // Send to queue from ISR
       BaseType_t xHigherPriorityTaskWoken = pdFALSE;
       xQueueSendFromISR(component->touch_queue_, &event, &xHigherPriorityTaskWoken);
