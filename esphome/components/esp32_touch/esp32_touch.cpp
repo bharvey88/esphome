@@ -80,11 +80,9 @@ void ESP32TouchComponent::setup() {
 #endif
 
 #if ESP_IDF_VERSION_MAJOR >= 5 && defined(USE_ESP32_VARIANT_ESP32)
-  ESP_LOGD(TAG, "Setting measurement_clock_cycles=%u, measurement_interval=%u", this->meas_cycle_, this->sleep_cycle_);
   touch_pad_set_measurement_clock_cycles(this->meas_cycle_);
   touch_pad_set_measurement_interval(this->sleep_cycle_);
 #else
-  ESP_LOGD(TAG, "Setting meas_time: sleep_cycle=%u, meas_cycle=%u", this->sleep_cycle_, this->meas_cycle_);
   touch_pad_set_meas_time(this->sleep_cycle_, this->meas_cycle_);
 #endif
   touch_pad_set_voltage(this->high_voltage_reference_, this->low_voltage_reference_, this->voltage_attenuation_);
@@ -120,28 +118,6 @@ void ESP32TouchComponent::setup() {
 
   // Enable touch pad interrupt
   touch_pad_intr_enable();
-
-  // Log which pads are configured and initialize their state
-  ESP_LOGI(TAG, "Configured touch pads:");
-  for (auto *child : this->children_) {
-    uint32_t value = this->component_touch_pad_read(child->get_touch_pad());
-    ESP_LOGI(TAG, "  Touch Pad %d: threshold=%d, current value=%d", (int) child->get_touch_pad(),
-             (int) child->get_threshold(), (int) value);
-
-    // Initialize the sensor state based on current value
-#if defined(USE_ESP32_VARIANT_ESP32S2) || defined(USE_ESP32_VARIANT_ESP32S3)
-    bool is_touched = value > child->get_threshold();
-#else
-    bool is_touched = value < child->get_threshold();
-#endif
-
-    child->last_state_ = is_touched;
-    child->publish_initial_state(is_touched);
-
-    if (is_touched) {
-      this->last_touch_time_[child->get_touch_pad()] = App.get_loop_component_start_time();
-    }
-  }
 }
 
 void ESP32TouchComponent::dump_config() {
@@ -345,25 +321,6 @@ void ESP32TouchComponent::dump_config() {
   }
 }
 
-uint32_t ESP32TouchComponent::component_touch_pad_read(touch_pad_t tp) {
-#if defined(USE_ESP32_VARIANT_ESP32S2) || defined(USE_ESP32_VARIANT_ESP32S3)
-  uint32_t value = 0;
-  if (this->filter_configured_()) {
-    touch_pad_filter_read_smooth(tp, &value);
-  } else {
-    touch_pad_read_raw_data(tp, &value);
-  }
-#else
-  uint16_t value = 0;
-  if (this->iir_filter_enabled_()) {
-    touch_pad_read_filtered(tp, &value);
-  } else {
-    touch_pad_read(tp, &value);
-  }
-#endif
-  return value;
-}
-
 void ESP32TouchComponent::loop() {
   const uint32_t now = App.get_loop_component_start_time();
   bool should_print = this->setup_mode_ && now - this->setup_mode_last_log_print_ > 250;
@@ -379,9 +336,7 @@ void ESP32TouchComponent::loop() {
 
   // Process any queued touch events from interrupts
   TouchPadEvent event;
-  uint32_t processed_pads = 0;  // Bitmask of pads we processed events for
   while (xQueueReceive(this->touch_queue_, &event, 0) == pdTRUE) {
-    processed_pads |= (1 << event.pad);
     // Find the corresponding sensor
     for (auto *child : this->children_) {
       if (child->get_touch_pad() == event.pad) {
@@ -399,8 +354,10 @@ void ESP32TouchComponent::loop() {
         if (new_state != child->last_state_) {
           child->last_state_ = new_state;
           child->publish_state(new_state);
-          ESP_LOGD(TAG, "Touch Pad '%s' state: %s (value: %" PRIu32 ", threshold: %" PRIu32 ")",
-                   child->get_name().c_str(), new_state ? "ON" : "OFF", event.value, child->get_threshold());
+          // Note: In practice, this will always show ON because the ISR only fires when a pad is touched
+          // OFF events are detected by the timeout logic, not the ISR
+          ESP_LOGV(TAG, "Touch Pad '%s' state: ON (value: %" PRIu32 ", threshold: %" PRIu32 ")",
+                   child->get_name().c_str(), event.value, child->get_threshold());
         }
         break;
       }
@@ -416,23 +373,24 @@ void ESP32TouchComponent::loop() {
 
   for (auto *child : this->children_) {
     touch_pad_t pad = child->get_touch_pad();
+    uint32_t last_time = this->last_touch_time_[pad];
 
-    // Skip if we just processed an event for this pad
-    if ((processed_pads >> pad) & 0x01) {
-      continue;
-    }
-
-    if (child->last_state_) {
-      uint32_t last_time = this->last_touch_time_[pad];
+    // If we've never seen this pad touched (last_time == 0) and enough time has passed
+    // since startup, publish OFF state and mark as published with value 1
+    if (last_time == 0 && now > this->release_timeout_ms_) {
+      child->publish_state(false);
+      this->last_touch_time_[pad] = 1;  // Mark as "initial state published"
+      ESP_LOGV(TAG, "Touch Pad '%s' state: OFF (initial)", child->get_name().c_str());
+    } else if (child->last_state_ && last_time > 1) {  // last_time > 1 means it's a real timestamp
       uint32_t time_diff = now - last_time;
 
       // Check if we haven't seen this pad recently
-      if (last_time == 0 || time_diff > this->release_timeout_ms_) {
+      if (time_diff > this->release_timeout_ms_) {
         // Haven't seen this pad recently, assume it's released
         child->last_state_ = false;
         child->publish_state(false);
-        this->last_touch_time_[pad] = 0;
-        ESP_LOGD(TAG, "Touch Pad '%s' state: OFF (timeout)", child->get_name().c_str());
+        this->last_touch_time_[pad] = 1;  // Reset to "initial published" state
+        ESP_LOGV(TAG, "Touch Pad '%s' state: OFF (timeout)", child->get_name().c_str());
       }
     }
   }
@@ -489,7 +447,7 @@ void IRAM_ATTR ESP32TouchComponent::touch_isr_handler(void *arg) {
     uint32_t value;
 #if defined(USE_ESP32_VARIANT_ESP32S2) || defined(USE_ESP32_VARIANT_ESP32S3)
     if (component->filter_configured_()) {
-      touch_pad_read_raw_data(pad, &value);
+      touch_pad_filter_read_smooth(pad, &value);
     } else {
       // Use low-level HAL function when filter is not configured
       value = touch_ll_read_raw_data(pad);
@@ -497,7 +455,7 @@ void IRAM_ATTR ESP32TouchComponent::touch_isr_handler(void *arg) {
 #else
     if (component->iir_filter_enabled_()) {
       uint16_t temp_value = 0;
-      touch_pad_read_raw_data(pad, &temp_value);
+      touch_pad_read_filtered(pad, &temp_value);
       value = temp_value;
     } else {
       // Use low-level HAL function when filter is not enabled
