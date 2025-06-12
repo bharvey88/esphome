@@ -68,9 +68,9 @@ class ESP32TouchComponent : public Component {
   static void touch_isr_handler(void *arg);
 
   QueueHandle_t touch_queue_{nullptr};
-  uint32_t last_touch_time_[SOC_TOUCH_SENSOR_NUM] = {0};  // Track last time each pad was seen as touched
-  uint32_t release_timeout_ms_{1500};                     // Calculated timeout for release detection
-  uint32_t release_check_interval_ms_{50};                // How often to check for releases
+  uint32_t last_touch_time_[TOUCH_PAD_MAX] = {0};  // Track last time each pad was seen as touched
+  uint32_t release_timeout_ms_{1500};              // Calculated timeout for release detection
+  uint32_t release_check_interval_ms_{50};         // How often to check for releases
 #if defined(USE_ESP32_VARIANT_ESP32S2) || defined(USE_ESP32_VARIANT_ESP32S3)
   bool filter_configured_() const {
     return (this->filter_mode_ != TOUCH_PAD_FILTER_MAX) && (this->smooth_level_ != TOUCH_PAD_SMOOTH_MAX);
