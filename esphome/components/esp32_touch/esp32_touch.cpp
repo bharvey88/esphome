@@ -366,10 +366,14 @@ uint32_t ESP32TouchComponent::component_touch_pad_read(touch_pad_t tp) {
 
 void ESP32TouchComponent::loop() {
   const uint32_t now = App.get_loop_component_start_time();
-  bool should_print = now - this->setup_mode_last_log_print_ > 1000;  // Log every second
+  bool should_print = this->setup_mode_ && now - this->setup_mode_last_log_print_ > 250;
 
-  // Always check touch status periodically
+  // Print debug info for all pads in setup mode
   if (should_print) {
+    for (auto *child : this->children_) {
+      ESP_LOGD(TAG, "Touch Pad '%s' (T%" PRIu32 "): %" PRIu32, child->get_name().c_str(),
+               (uint32_t) child->get_touch_pad(), child->value_);
+    }
     this->setup_mode_last_log_print_ = now;
   }
 
@@ -481,8 +485,25 @@ void IRAM_ATTR ESP32TouchComponent::touch_isr_handler(void *arg) {
   for (auto *child : component->children_) {
     touch_pad_t pad = child->get_touch_pad();
 
-    // Read current value
-    uint32_t value = touch_ll_read_raw_data(pad);
+    // Read current value using ISR-safe API
+    uint32_t value;
+#if defined(USE_ESP32_VARIANT_ESP32S2) || defined(USE_ESP32_VARIANT_ESP32S3)
+    if (component->filter_configured_()) {
+      touch_pad_read_raw_data(pad, &value);
+    } else {
+      // Use low-level HAL function when filter is not configured
+      value = touch_ll_read_raw_data(pad);
+    }
+#else
+    if (component->iir_filter_enabled_()) {
+      uint16_t temp_value = 0;
+      touch_pad_read_raw_data(pad, &temp_value);
+      value = temp_value;
+    } else {
+      // Use low-level HAL function when filter is not enabled
+      value = touch_ll_read_raw_data(pad);
+    }
+#endif
 
     // Skip pads with 0 value - they haven't been measured in this cycle
     if (value == 0) {
