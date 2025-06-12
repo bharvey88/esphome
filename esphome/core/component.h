@@ -6,6 +6,7 @@
 #include <string>
 
 #include "esphome/core/optional.h"
+#include "esphome/core/runtime_stats.h"
 
 namespace esphome {
 
