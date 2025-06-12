@@ -68,6 +68,7 @@ class ESP32TouchComponent : public Component {
   static void touch_isr_handler(void *arg);
 
   QueueHandle_t touch_queue_{nullptr};
+  uint32_t last_touch_status_{0};  // Track last interrupt status to detect changes
 #if defined(USE_ESP32_VARIANT_ESP32S2) || defined(USE_ESP32_VARIANT_ESP32S3)
   bool filter_configured_() const {
     return (this->filter_mode_ != TOUCH_PAD_FILTER_MAX) && (this->smooth_level_ != TOUCH_PAD_SMOOTH_MAX);
