@@ -121,17 +121,11 @@ void ESP32TouchComponent::setup() {
   // Get actual RTC clock frequency
   uint32_t rtc_freq = rtc_clk_slow_freq_get_hz();
 
-#if defined(USE_ESP32_VARIANT_ESP32S2) || defined(USE_ESP32_VARIANT_ESP32S3)
   // For S2/S3, calculate based on actual sleep cycle since they use timer mode
   this->release_timeout_ms_ = (this->sleep_cycle_ * 1000 * 3) / (rtc_freq * 2);
   if (this->release_timeout_ms_ < 100) {
     this->release_timeout_ms_ = 100;  // Minimum 100ms
   }
-#else
-  // For ESP32 in software mode, we're triggering manually
-  // Since we're triggering every 1 second in the debug loop, use 1500ms timeout
-  this->release_timeout_ms_ = 1500;  // 1.5 seconds
-#endif
 
   // Calculate check interval
   this->release_check_interval_ms_ = std::min(this->release_timeout_ms_ / 4, (uint32_t) 50);
