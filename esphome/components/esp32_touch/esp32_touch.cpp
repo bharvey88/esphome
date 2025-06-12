@@ -427,6 +427,16 @@ void ESP32TouchComponent::loop() {
   const uint32_t now = App.get_loop_component_start_time();
   bool should_print = now - this->setup_mode_last_log_print_ > 1000;  // Log every second
 
+#if !defined(USE_ESP32_VARIANT_ESP32S2) && !defined(USE_ESP32_VARIANT_ESP32S3)
+  // For ESP32 in SW mode, we need to trigger measurements periodically
+  // Otherwise no interrupts will fire
+  static uint32_t last_sw_trigger = 0;
+  if (now - last_sw_trigger >= 50) {  // Trigger every 50ms (20Hz)
+    touch_pad_sw_start();
+    last_sw_trigger = now;
+  }
+#endif
+
   if (this->setup_mode_ && should_print) {
     ESP_LOGD(TAG, "Touch Pad '%s' (T%u): value=NA", this->children_[0]->get_name().c_str(),
              this->children_[0]->get_touch_pad());
