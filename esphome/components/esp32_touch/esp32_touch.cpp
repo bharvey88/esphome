@@ -32,6 +32,12 @@ void ESP32TouchComponent::setup() {
 
   touch_pad_init();
 
+  touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER);
+
+#if defined(USE_ESP32_VARIANT_ESP32S2) || defined(USE_ESP32_VARIANT_ESP32S3)
+  touch_pad_fsm_start();
+#endif
+
   // Create queue for touch events - size based on number of touch pads
   // Each pad can have at most a few events queued (press/release)
   // Use 4x the number of pads to handle burst events
@@ -96,34 +102,9 @@ void ESP32TouchComponent::setup() {
   touch_pad_set_voltage(this->high_voltage_reference_, this->low_voltage_reference_, this->voltage_attenuation_);
 
   for (auto *child : this->children_) {
-#if defined(USE_ESP32_VARIANT_ESP32S2) || defined(USE_ESP32_VARIANT_ESP32S3)
-    touch_pad_config(child->get_touch_pad());
-    if (child->get_threshold() > 0) {
-      touch_pad_set_thresh(child->get_touch_pad(), child->get_threshold());
-    }
-#else
     // Set interrupt threshold
     touch_pad_config(child->get_touch_pad(), child->get_threshold());
-#endif
   }
-
-#if defined(USE_ESP32_VARIANT_ESP32S2) || defined(USE_ESP32_VARIANT_ESP32S3)
-  touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER);
-  touch_pad_fsm_start();
-#else
-  // For ESP32, we'll use software mode with manual triggering
-  // Timer mode seems to break touch measurements completely
-  touch_pad_set_fsm_mode(TOUCH_FSM_MODE_SW);
-
-  // Set trigger mode and source
-  touch_pad_set_trigger_mode(TOUCH_TRIGGER_BELOW);
-  touch_pad_set_trigger_source(TOUCH_TRIGGER_SOURCE_BOTH);
-  // Clear any pending interrupts before starting
-  touch_pad_clear_status();
-
-  // Do an initial measurement
-  touch_pad_sw_start();
-#endif
 
   // Register ISR handler
   esp_err_t err = touch_pad_isr_register(touch_isr_handler, this);
@@ -576,6 +557,7 @@ void IRAM_ATTR ESP32TouchComponent::touch_isr_handler(void *arg) {
     touch_pad_t pad = child->get_touch_pad();
 
     // Read current value
+    // We should be using touch_pad_read_filtered here
     uint32_t value = touch_ll_read_raw_data(pad);
 
     // Skip pads with 0 value - they haven't been measured in this cycle
