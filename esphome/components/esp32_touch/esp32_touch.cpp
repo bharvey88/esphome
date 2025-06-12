@@ -22,13 +22,6 @@ static const char *const TAG = "esp32_touch";
 
 void ESP32TouchComponent::setup() {
   ESP_LOGCONFIG(TAG, "Running setup");
-  ESP_LOGI(TAG, "Number of touch pads configured: %d", this->children_.size());
-
-  if (this->children_.empty()) {
-    ESP_LOGE(TAG, "No touch pads configured!");
-    this->mark_failed();
-    return;
-  }
 
   touch_pad_init();
 
@@ -39,7 +32,7 @@ void ESP32TouchComponent::setup() {
 #endif
 
   // Create queue for touch events - size based on number of touch pads
-  // Each pad can have at most a few events queued (press/release)
+  // Each pad can have at most a few press events queued
   // Use 4x the number of pads to handle burst events
   size_t queue_size = this->children_.size() * 4;
   if (queue_size < 8)
@@ -121,7 +114,7 @@ void ESP32TouchComponent::setup() {
   // Get actual RTC clock frequency
   uint32_t rtc_freq = rtc_clk_slow_freq_get_hz();
 
-  // For S2/S3, calculate based on actual sleep cycle since they use timer mode
+  // Calculate based on actual sleep cycle since they use timer mode
   this->release_timeout_ms_ = (this->sleep_cycle_ * 1000 * 3) / (rtc_freq * 2);
   if (this->release_timeout_ms_ < 100) {
     this->release_timeout_ms_ = 100;  // Minimum 100ms
@@ -130,31 +123,8 @@ void ESP32TouchComponent::setup() {
   // Calculate check interval
   this->release_check_interval_ms_ = std::min(this->release_timeout_ms_ / 4, (uint32_t) 50);
 
-  // Read back the actual configuration to verify
-  uint16_t actual_sleep_cycle = 0;
-  uint16_t actual_meas_cycle = 0;
-#if ESP_IDF_VERSION_MAJOR >= 5 && defined(USE_ESP32_VARIANT_ESP32)
-  touch_pad_get_measurement_interval(&actual_sleep_cycle);
-  touch_pad_get_measurement_clock_cycles(&actual_meas_cycle);
-#else
-  touch_pad_get_meas_time(&actual_sleep_cycle, &actual_meas_cycle);
-#endif
-
-  ESP_LOGI(TAG, "Touch timing config - requested: sleep=%u, meas=%u | actual: sleep=%u, meas=%u", this->sleep_cycle_,
-           this->meas_cycle_, actual_sleep_cycle, actual_meas_cycle);
-  ESP_LOGI(TAG, "Touch release timeout: %u ms, check interval: %u ms (RTC freq: %u Hz)", this->release_timeout_ms_,
-           this->release_check_interval_ms_, rtc_freq);
-
   // Enable touch pad interrupt
   touch_pad_intr_enable();
-  ESP_LOGI(TAG, "Touch pad interrupts enabled");
-
-  // Check FSM state for debugging
-  touch_fsm_mode_t fsm_mode;
-  touch_pad_get_fsm_mode(&fsm_mode);
-  ESP_LOGI(TAG, "FSM mode: %s", fsm_mode == TOUCH_FSM_MODE_TIMER ? "TIMER" : "SW");
-
-  ESP_LOGI(TAG, "Initial touch status: 0x%04x", touch_pad_get_status());
 
   // Log which pads are configured and initialize their state
   ESP_LOGI(TAG, "Configured touch pads:");
