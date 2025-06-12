@@ -339,23 +339,23 @@ void ESP32TouchComponent::loop() {
     this->setup_mode_last_log_print_ = now;
   }
 
-  // Process any queued touch events
+  // Process any queued touch events from interrupts
   TouchPadEvent event;
   while (xQueueReceive(this->touch_queue_, &event, 0) == pdTRUE) {
     // Find the corresponding sensor
     for (auto *child : this->children_) {
       if (child->get_touch_pad() == event.pad) {
         child->value_ = event.value;
-        bool new_state;
-#if !(defined(USE_ESP32_VARIANT_ESP32S2) || defined(USE_ESP32_VARIANT_ESP32S3))
-        new_state = child->value_ < child->get_threshold();
-#else
-        new_state = child->value_ > child->get_threshold();
-#endif
+
+        // The interrupt gives us the triggered state directly
+        bool new_state = event.triggered;
+
         // Only publish if state changed
         if (new_state != child->last_state_) {
           child->last_state_ = new_state;
           child->publish_state(new_state);
+          ESP_LOGD(TAG, "Touch Pad '%s' state: %s (value: %" PRIu32 ", threshold: %" PRIu32 ")",
+                   child->get_name().c_str(), new_state ? "ON" : "OFF", event.value, child->get_threshold());
         }
         break;
       }
@@ -401,24 +401,25 @@ void ESP32TouchComponent::on_shutdown() {
 
 void IRAM_ATTR ESP32TouchComponent::touch_isr_handler(void *arg) {
   ESP32TouchComponent *component = static_cast<ESP32TouchComponent *>(arg);
-  uint32_t pad_intr = touch_pad_get_status();
+  uint32_t pad_status = touch_pad_get_status();
   touch_pad_clear_status();
 
-  // Check which pads triggered
-  for (int i = 0; i < TOUCH_PAD_MAX; i++) {
-    if ((pad_intr >> i) & 0x01) {
-      touch_pad_t pad = static_cast<touch_pad_t>(i);
-      TouchPadEvent event;
-      event.pad = pad;
-      // Read value in ISR using HAL function (safe for all variants)
-      // touch_pad_read() and touch_pad_read_raw_data() use semaphores and cannot be called from ISR
-      event.value = touch_ll_read_raw_data(pad);
-      // Send to queue from ISR
-      BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-      xQueueSendFromISR(component->touch_queue_, &event, &xHigherPriorityTaskWoken);
-      if (xHigherPriorityTaskWoken) {
-        portYIELD_FROM_ISR();
-      }
+  // pad_status contains the current trigger state of all pads
+  // Send status update for all configured pads
+  for (auto *child : component->children_) {
+    touch_pad_t pad = child->get_touch_pad();
+    TouchPadEvent event;
+    event.pad = pad;
+    // Check if this pad is currently triggered (1) or not (0)
+    event.triggered = (pad_status >> pad) & 0x01;
+    // Read current value using HAL function (safe for all variants)
+    event.value = touch_ll_read_raw_data(pad);
+
+    // Send to queue from ISR
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xQueueSendFromISR(component->touch_queue_, &event, &xHigherPriorityTaskWoken);
+    if (xHigherPriorityTaskWoken) {
+      portYIELD_FROM_ISR();
     }
   }
 }

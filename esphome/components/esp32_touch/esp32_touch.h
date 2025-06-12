@@ -20,6 +20,7 @@ class ESP32TouchBinarySensor;
 struct TouchPadEvent {
   touch_pad_t pad;
   uint32_t value;
+  bool triggered;  // Whether this pad is currently in triggered state
 };
 
 class ESP32TouchComponent : public Component {
