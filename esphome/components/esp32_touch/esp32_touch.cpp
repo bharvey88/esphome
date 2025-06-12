@@ -10,8 +10,6 @@
 
 // Include HAL for ISR-safe touch reading on all variants
 #include "hal/touch_sensor_ll.h"
-// Include for ISR-safe printing
-#include "rom/ets_sys.h"
 // Include for RTC clock frequency
 #include "soc/rtc.h"
 
@@ -147,12 +145,6 @@ void ESP32TouchComponent::setup() {
 }
 
 void ESP32TouchComponent::dump_config() {
-  ESP_LOGCONFIG(TAG,
-                "Config for ESP32 Touch Hub:\n"
-                "  Meas cycle: %.2fms\n"
-                "  Sleep cycle: %.2fms",
-                this->meas_cycle_ / (8000000.0f / 1000.0f), this->sleep_cycle_ / (150000.0f / 1000.0f));
-
   const char *lv_s;
   switch (this->low_voltage_reference_) {
     case TOUCH_LVOLT_0V5:
@@ -171,7 +163,6 @@ void ESP32TouchComponent::dump_config() {
       lv_s = "UNKNOWN";
       break;
   }
-  ESP_LOGCONFIG(TAG, "  Low Voltage Reference: %s", lv_s);
 
   const char *hv_s;
   switch (this->high_voltage_reference_) {
@@ -191,7 +182,6 @@ void ESP32TouchComponent::dump_config() {
       hv_s = "UNKNOWN";
       break;
   }
-  ESP_LOGCONFIG(TAG, "  High Voltage Reference: %s", hv_s);
 
   const char *atten_s;
   switch (this->voltage_attenuation_) {
@@ -211,7 +201,15 @@ void ESP32TouchComponent::dump_config() {
       atten_s = "UNKNOWN";
       break;
   }
-  ESP_LOGCONFIG(TAG, "  Voltage Attenuation: %s", atten_s);
+  ESP_LOGCONFIG(TAG,
+                "Config for ESP32 Touch Hub:\n"
+                "  Meas cycle: %.2fms\n"
+                "  Sleep cycle: %.2fms\n"
+                "  Low Voltage Reference: %s\n"
+                "  High Voltage Reference: %s\n"
+                "  Voltage Attenuation: %s",
+                this->meas_cycle_ / (8000000.0f / 1000.0f), this->sleep_cycle_ / (150000.0f / 1000.0f), lv_s, hv_s,
+                atten_s);
 
 #if defined(USE_ESP32_VARIANT_ESP32S2) || defined(USE_ESP32_VARIANT_ESP32S3)
   if (this->filter_configured_()) {
@@ -336,6 +334,13 @@ void ESP32TouchComponent::dump_config() {
   if (this->setup_mode_) {
     ESP_LOGCONFIG(TAG, "  Setup Mode ENABLED");
   }
+
+  // Log ISR-related configuration
+  ESP_LOGCONFIG(TAG,
+                "  ISR Configuration:\n"
+                "    Release timeout: %" PRIu32 "ms\n"
+                "    Release check interval: %" PRIu32 "ms",
+                this->release_timeout_ms_, this->release_check_interval_ms_);
 
   for (auto *child : this->children_) {
     LOG_BINARY_SENSOR("  ", "Touch Pad", child);
