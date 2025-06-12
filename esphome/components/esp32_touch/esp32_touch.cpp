@@ -38,9 +38,6 @@ void ESP32TouchComponent::setup() {
   if (queue_size < 8)
     queue_size = 8;  // Minimum queue size
 
-  // QUEUE SIZE likely doesn't make sense if its really ratelimited
-  // to 1 per second, but this is a good starting point
-
   this->touch_queue_ = xQueueCreate(queue_size, sizeof(TouchPadEvent));
   if (this->touch_queue_ == nullptr) {
     ESP_LOGE(TAG, "Failed to create touch event queue of size %d", queue_size);
@@ -147,8 +144,6 @@ void ESP32TouchComponent::setup() {
       this->last_touch_time_[child->get_touch_pad()] = App.get_loop_component_start_time();
     }
   }
-
-  ESP_LOGI(TAG, "ESP32 Touch setup complete");
 }
 
 void ESP32TouchComponent::dump_config() {
@@ -477,14 +472,8 @@ void ESP32TouchComponent::on_shutdown() {
 void IRAM_ATTR ESP32TouchComponent::touch_isr_handler(void *arg) {
   ESP32TouchComponent *component = static_cast<ESP32TouchComponent *>(arg);
 
-  // Log that ISR was called
-  ets_printf("Touch ISR triggered!\n");
-
   uint32_t pad_status = touch_pad_get_status();
   touch_pad_clear_status();
-
-  // Always log the status
-  ets_printf("Touch ISR: raw status=0x%04x\n", pad_status);
 
   // Process all configured pads to check their current state
   // Send events for ALL pads with valid readings so we catch both touches and releases
@@ -492,7 +481,6 @@ void IRAM_ATTR ESP32TouchComponent::touch_isr_handler(void *arg) {
     touch_pad_t pad = child->get_touch_pad();
 
     // Read current value
-    // We should be using touch_pad_read_filtered here
     uint32_t value = touch_ll_read_raw_data(pad);
 
     // Skip pads with 0 value - they haven't been measured in this cycle
@@ -506,8 +494,6 @@ void IRAM_ATTR ESP32TouchComponent::touch_isr_handler(void *arg) {
 #else
     bool is_touched = value < child->get_threshold();
 #endif
-
-    ets_printf("  Pad %d: value=%d, threshold=%d, touched=%d\n", pad, value, child->get_threshold(), is_touched);
 
     // Always send the current state - the main loop will filter for changes
     TouchPadEvent event;
