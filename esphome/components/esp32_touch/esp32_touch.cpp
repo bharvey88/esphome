@@ -443,7 +443,7 @@ void ESP32TouchComponent::loop() {
     // Try a manual software trigger to see if measurements are working at all
     if (current_status == 0 && hal_status == 0) {
       ESP_LOGD(TAG, "No touch status, trying manual trigger...");
-      touch_pad_sw_start();
+      // touch_pad_sw_start();
     }
 
     for (auto *child : this->children_) {
