@@ -207,9 +207,12 @@ void ESP32TouchComponent::dump_config() {
                 "  Sleep cycle: %.2fms\n"
                 "  Low Voltage Reference: %s\n"
                 "  High Voltage Reference: %s\n"
-                "  Voltage Attenuation: %s",
+                "  Voltage Attenuation: %s\n"
+                "  ISR Configuration:\n"
+                "    Release timeout: %" PRIu32 "ms\n"
+                "    Release check interval: %" PRIu32 "ms",
                 this->meas_cycle_ / (8000000.0f / 1000.0f), this->sleep_cycle_ / (150000.0f / 1000.0f), lv_s, hv_s,
-                atten_s);
+                atten_s, this->release_timeout_ms_, this->release_check_interval_ms_);
 
 #if defined(USE_ESP32_VARIANT_ESP32S2) || defined(USE_ESP32_VARIANT_ESP32S3)
   if (this->filter_configured_()) {
@@ -334,13 +337,6 @@ void ESP32TouchComponent::dump_config() {
   if (this->setup_mode_) {
     ESP_LOGCONFIG(TAG, "  Setup Mode ENABLED");
   }
-
-  // Log ISR-related configuration
-  ESP_LOGCONFIG(TAG,
-                "  ISR Configuration:\n"
-                "    Release timeout: %" PRIu32 "ms\n"
-                "    Release check interval: %" PRIu32 "ms",
-                this->release_timeout_ms_, this->release_check_interval_ms_);
 
   for (auto *child : this->children_) {
     LOG_BINARY_SENSOR("  ", "Touch Pad", child);
