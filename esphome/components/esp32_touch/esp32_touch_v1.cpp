@@ -179,7 +179,7 @@ void ESP32TouchComponent::loop() {
 void ESP32TouchComponent::on_shutdown() {
   touch_pad_intr_disable();
   touch_pad_isr_deregister(touch_isr_handler, this);
-  this->cleanup_touch_queue();
+  this->cleanup_touch_queue_();
 
   if (this->iir_filter_enabled_()) {
     touch_pad_filter_stop();
