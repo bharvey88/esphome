@@ -10,6 +10,22 @@ namespace esp32_touch {
 
 static const char *const TAG = "esp32_touch";
 
+// Helper to read touch value and update state for a given child
+void ESP32TouchComponent::check_and_update_touch_state_(ESP32TouchBinarySensor *child) {
+  // Read current touch value
+  uint32_t value = this->read_touch_value(child->get_touch_pad());
+
+  // ESP32-S2/S3 v2: Touch is detected when value > threshold
+  bool is_touched = value > child->get_threshold();
+
+  if (child->last_state_ != is_touched) {
+    child->last_state_ = is_touched;
+    child->publish_state(is_touched);
+    ESP_LOGD(TAG, "Touch Pad '%s' %s (value: %d %s threshold: %d)", child->get_name().c_str(),
+             is_touched ? "touched" : "released", value, is_touched ? ">" : "<=", child->get_threshold());
+  }
+}
+
 void ESP32TouchComponent::setup() {
   // Create queue for touch events first
   if (!this->create_touch_queue_()) {
@@ -103,15 +119,11 @@ void ESP32TouchComponent::setup() {
     // Read current value
     uint32_t value = this->read_touch_value(child->get_touch_pad());
 
-    // IMPORTANT: ESP32-S2/S3 v2 touch detection logic - INVERTED compared to v1!
-    // ESP32-S2/S3 v2: Touch is detected when capacitance INCREASES, causing the measured value to INCREASE
-    // Therefore: touched = (value > threshold)
-    // This is opposite to original ESP32 v1 where touched = (value < threshold)
+    // Set initial state and publish
     bool is_touched = value > child->get_threshold();
     child->last_state_ = is_touched;
     child->publish_initial_state(is_touched);
 
-    // Note: ESP32-S2/S3 v2 uses inverted logic compared to v1 - touched when value > threshold
     ESP_LOGD(TAG, "Touch Pad '%s' initial state: %s (value: %d %s threshold: %d)", child->get_name().c_str(),
              is_touched ? "touched" : "released", value, is_touched ? ">" : "<=", child->get_threshold());
   }
@@ -260,15 +272,11 @@ void ESP32TouchComponent::loop() {
     if (event.intr_mask & TOUCH_PAD_INTR_MASK_TIMEOUT) {
       // Resume measurement after timeout
       touch_pad_timeout_resume();
+      // For timeout events, always check the current state
+    } else if (!(event.intr_mask & (TOUCH_PAD_INTR_MASK_ACTIVE | TOUCH_PAD_INTR_MASK_INACTIVE))) {
+      // Skip if not an active/inactive/timeout event
       continue;
     }
-
-    // Skip if not an active/inactive event
-    if (!(event.intr_mask & (TOUCH_PAD_INTR_MASK_ACTIVE | TOUCH_PAD_INTR_MASK_INACTIVE))) {
-      continue;
-    }
-
-    bool is_touch_event = (event.intr_mask & TOUCH_PAD_INTR_MASK_ACTIVE) != 0;
 
     // Find the child for the pad that triggered the interrupt
     for (auto *child : this->children_) {
@@ -276,19 +284,8 @@ void ESP32TouchComponent::loop() {
         continue;
       }
 
-      // Skip if state hasn't changed
-      if (child->last_state_ == is_touch_event) {
-        break;
-      }
-
-      // Read current value
-      uint32_t value = this->read_touch_value(event.pad);
-
-      child->last_state_ = is_touch_event;
-      child->publish_state(is_touch_event);
-      // Note: ESP32-S2/S3 v2 uses inverted logic compared to v1 - touched when value > threshold
-      ESP_LOGD(TAG, "Touch Pad '%s' %s (value: %d %s threshold: %d)", child->get_name().c_str(),
-               is_touch_event ? "touched" : "released", value, is_touch_event ? ">" : "<=", child->get_threshold());
+      // Check and update state
+      this->check_and_update_touch_state_(child);
       break;
     }
   }
