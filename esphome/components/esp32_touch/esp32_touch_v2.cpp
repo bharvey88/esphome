@@ -18,7 +18,7 @@ void ESP32TouchComponent::update_touch_state_(ESP32TouchBinarySensor *child, boo
 
     child->last_state_ = is_touched;
     child->publish_state(is_touched);
-    ESP_LOGD(TAG, "Touch Pad '%s' %s (value: %d %s threshold: %d)", child->get_name().c_str(),
+    ESP_LOGD(TAG, "Touch Pad '%s' %s (value: %" PRIu32 " %s threshold: %" PRIu32 ")", child->get_name().c_str(),
              is_touched ? "touched" : "released", value, is_touched ? ">" : "<=", child->get_threshold());
   }
 }

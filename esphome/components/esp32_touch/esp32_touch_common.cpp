@@ -47,7 +47,7 @@ bool ESP32TouchComponent::create_touch_queue_() {
 #endif
 
   if (this->touch_queue_ == nullptr) {
-    ESP_LOGE(TAG, "Failed to create touch event queue of size %d", queue_size);
+    ESP_LOGE(TAG, "Failed to create touch event queue of size %" PRIu32, (uint32_t) queue_size);
     this->mark_failed();
     return false;
   }
