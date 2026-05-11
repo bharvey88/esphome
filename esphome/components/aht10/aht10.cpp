@@ -36,9 +36,37 @@ static const uint8_t AHT10_STATUS_BUSY = 0x80;
 
 static const float AHT10_DIVISOR = 1048576.0f;  // 2^20, used for temperature and humidity calculations
 
+// Some AHT-series chips (notably AHT20) need extra settling time after power-on before they respond on the I2C bus.
+// If the very first init attempt fails, retry on a short interval rather than giving up.
+static constexpr uint8_t AHT10_INIT_MAX_RETRIES = 10;
+static constexpr uint32_t AHT10_INIT_RETRY_INTERVAL_MS = 100;
+static constexpr uint32_t AHT10_INIT_RETRY_ID = 0;
+
 void AHT10Component::setup() {
+  if (this->try_init_()) {
+    return;
+  }
+  ESP_LOGW(TAG, "Init failed on first attempt, will retry");
+  this->status_set_warning(LOG_STR("Sensor not responding, retrying init"));
+  this->init_retries_remaining_ = AHT10_INIT_MAX_RETRIES;
+  this->set_interval(AHT10_INIT_RETRY_ID, AHT10_INIT_RETRY_INTERVAL_MS, [this]() {
+    if (this->try_init_()) {
+      this->cancel_interval(AHT10_INIT_RETRY_ID);
+      this->status_clear_warning();
+      return;
+    }
+    if (--this->init_retries_remaining_ == 0) {
+      this->cancel_interval(AHT10_INIT_RETRY_ID);
+      ESP_LOGE(TAG, "Init failed after %u retries", AHT10_INIT_MAX_RETRIES);
+      this->mark_failed(LOG_STR("Init failed after retries"));
+    }
+  });
+}
+
+bool AHT10Component::try_init_() {
   if (this->write(AHT10_SOFTRESET_CMD, sizeof(AHT10_SOFTRESET_CMD)) != i2c::ERROR_OK) {
-    ESP_LOGE(TAG, "Reset failed");
+    ESP_LOGD(TAG, "Reset failed, will retry");
+    return false;
   }
   delay(AHT10_SOFTRESET_DELAY);
 
@@ -52,31 +80,29 @@ void AHT10Component::setup() {
       break;
   }
   if (error_code != i2c::ERROR_OK) {
-    ESP_LOGE(TAG, ESP_LOG_MSG_COMM_FAIL);
-    this->mark_failed();
-    return;
+    ESP_LOGD(TAG, "Init command failed, will retry");
+    return false;
   }
   uint8_t cal_attempts = 0;
   uint8_t data = AHT10_STATUS_BUSY;
   while (data & AHT10_STATUS_BUSY) {
     delay(AHT10_DEFAULT_DELAY);
     if (this->read(&data, 1) != i2c::ERROR_OK) {
-      ESP_LOGE(TAG, ESP_LOG_MSG_COMM_FAIL);
-      this->mark_failed();
-      return;
+      ESP_LOGD(TAG, "Status read failed, will retry");
+      return false;
     }
     ++cal_attempts;
     if (cal_attempts > AHT10_INIT_ATTEMPTS) {
-      ESP_LOGE(TAG, "Initialization timed out");
-      this->mark_failed();
-      return;
+      ESP_LOGD(TAG, "Initialization timed out, will retry");
+      return false;
     }
   }
   if ((data & 0x68) != 0x08) {  // Bit[6:5] = 0b00, NORMAL mode and Bit[3] = 0b1, CALIBRATED
-    ESP_LOGE(TAG, "Initialization failed");
-    this->mark_failed();
-    return;
+    ESP_LOGD(TAG, "Initialization status invalid, will retry");
+    return false;
   }
+  this->init_complete_ = true;
+  return true;
 }
 
 void AHT10Component::restart_read_() {
@@ -139,6 +165,8 @@ void AHT10Component::read_data_() {
   this->read_count_ = 0;
 }
 void AHT10Component::update() {
+  if (!this->init_complete_)
+    return;
   if (this->read_count_ != 0)
     return;
   this->start_time_ = millis();
