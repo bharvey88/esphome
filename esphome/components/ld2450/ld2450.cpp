@@ -489,20 +489,32 @@ void LD2450Component::handle_periodic_data_() {
     // SPEED
     start = TARGET_SPEED + index * 8;
     ts = ld2450::decode_speed(this->buffer_data_[start], this->buffer_data_[start + 1]);
-    if (ts) {
-      is_moving = true;
-      moving_target_count++;
-    }
-    // DISTANCE
-    // Optimized: use already decoded tx and ty values, replace pow() with multiplication
+    is_moving = (ts != 0);
+
+    // DISTANCE (radial). tx/ty are decoded unconditionally above.
     int32_t x_squared = (int32_t) tx * tx;
     int32_t y_squared = (int32_t) ty * ty;
     td = (uint16_t) sqrtf(x_squared + y_squared);
-    if (td > 0) {
+
+    // ANGLE: horizontal bearing, 0 = straight ahead, sign = left/right. Not elevation.
+    angle = atan2f(static_cast<float>(-tx), static_cast<float>(ty)) * (180.0f / std::numbers::pi_v<float>);
+
+    // Host-side detection filter. A target counts only if it is real (td>0) AND inside the
+    // configured angle+distance window. Filtered targets take the same path as td==0, so
+    // presence, target counts, and zone counts all ignore them.
+    bool counts = (td > 0) && angle >= this->detection_limits_[DETECTION_MIN_ANGLE] &&
+                  angle <= this->detection_limits_[DETECTION_MAX_ANGLE] &&
+                  static_cast<float>(td) >= this->detection_limits_[DETECTION_MIN_DISTANCE] &&
+                  static_cast<float>(td) <= this->detection_limits_[DETECTION_MAX_DISTANCE];
+
+    if (counts) {
       target_count++;
+      if (is_moving) {
+        moving_target_count++;
+      }
     }
 #ifdef USE_SENSOR
-    if (td == 0) {
+    if (!counts) {
       SAFE_PUBLISH_SENSOR_UNKNOWN(this->move_x_sensors_[index]);
       SAFE_PUBLISH_SENSOR_UNKNOWN(this->move_y_sensors_[index]);
       SAFE_PUBLISH_SENSOR_UNKNOWN(this->move_resolution_sensors_[index]);
@@ -515,14 +527,12 @@ void LD2450Component::handle_periodic_data_() {
       SAFE_PUBLISH_SENSOR(this->move_resolution_sensors_[index], res);
       SAFE_PUBLISH_SENSOR(this->move_speed_sensors_[index], ts);
       SAFE_PUBLISH_SENSOR(this->move_distance_sensors_[index], td);
-      // ANGLE - atan2f computes angle from Y axis directly, no sqrt/division needed
-      angle = atan2f(static_cast<float>(-tx), static_cast<float>(ty)) * (180.0f / std::numbers::pi_v<float>);
       SAFE_PUBLISH_SENSOR(this->move_angle_sensors_[index], angle);
     }
 #endif
 #ifdef USE_TEXT_SENSOR
     // DIRECTION
-    if (td == 0) {
+    if (!counts) {
       direction = DIRECTION_NA;
     } else if (ts > 0) {
       direction = DIRECTION_MOVING_AWAY;
@@ -539,11 +549,11 @@ void LD2450Component::handle_periodic_data_() {
     }
 #endif
 
-    // Store target info for zone target count. Zero out untracked targets (td==0)
+    // Store target info for zone target count. Zero out untracked/filtered targets
     // so stale coordinates don't produce ghost counts in count_targets_in_zone_().
-    this->target_info_[index].x = (td > 0) ? tx : 0;
-    this->target_info_[index].y = (td > 0) ? ty : 0;
-    this->target_info_[index].is_moving = (td > 0) && is_moving;
+    this->target_info_[index].x = counts ? tx : 0;
+    this->target_info_[index].y = counts ? ty : 0;
+    this->target_info_[index].is_moving = counts && is_moving;
 
   }  // End loop thru targets
 
