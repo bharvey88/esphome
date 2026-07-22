@@ -465,15 +465,14 @@ void LD2450Component::handle_periodic_data_() {
 #if defined(USE_BINARY_SENSOR) || defined(USE_SENSOR) || defined(USE_TEXT_SENSOR)
   // Loop thru targets
   for (index = 0; index < MAX_TARGETS; index++) {
-#ifdef USE_SENSOR
-    // X
+    // X / Y decoded unconditionally: td (distance) and the detection filter need them
+    // even when the sensor platform is not compiled in.
     start = TARGET_X + index * 8;
     is_moving = false;
-    // tx is used for further calculations, so always needs to be populated
     tx = ld2450::decode_coordinate(this->buffer_data_[start], this->buffer_data_[start + 1]);
-    // Y
     start = TARGET_Y + index * 8;
     ty = ld2450::decode_coordinate(this->buffer_data_[start], this->buffer_data_[start + 1]);
+#ifdef USE_SENSOR
     // RESOLUTION
     start = TARGET_RESOLUTION + index * 8;
     res = (this->buffer_data_[start + 1] << 8) | this->buffer_data_[start];
