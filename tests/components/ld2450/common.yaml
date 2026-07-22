@@ -130,6 +130,14 @@ number:
     ld2450_id: ld2450_radar
     presence_timeout:
       name: Timeout
+    max_detection_angle:
+      name: Max Detection Angle
+    min_detection_angle:
+      name: Min Detection Angle
+    max_detection_distance:
+      name: Max Detection Distance
+    min_detection_distance:
+      name: Min Detection Distance
     zone_1:
       x1:
         name: Zone-1 X1

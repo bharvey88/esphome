@@ -43,6 +43,14 @@ static constexpr uint8_t MAX_LINE_LENGTH = 45;
 static constexpr uint8_t MAX_TARGETS = 3;  // Max 3 Targets in LD2450
 static constexpr uint8_t MAX_ZONES = 3;    // Max 3 Zones in LD2450
 
+enum DetectionLimit : uint8_t {
+  DETECTION_MIN_ANGLE = 0,
+  DETECTION_MAX_ANGLE = 1,
+  DETECTION_MIN_DISTANCE = 2,
+  DETECTION_MAX_DISTANCE = 3,
+  DETECTION_LIMIT_COUNT = 4,
+};
+
 enum Direction : uint8_t {
   DIRECTION_APPROACHING = 0,
   DIRECTION_MOVING_AWAY = 1,
@@ -126,6 +134,8 @@ class LD2450Component : public Component, public uart::UARTDevice {
 #ifdef USE_NUMBER
   void set_zone_coordinate(uint8_t zone);
   void set_zone_numbers(uint8_t zone, number::Number *x1, number::Number *y1, number::Number *x2, number::Number *y2);
+  void set_detection_limit_number(uint8_t index, number::Number *n);
+  void set_detection_limit(uint8_t index);
 #endif
 #ifdef USE_SENSOR
   void set_move_x_sensor(uint8_t target, sensor::Sensor *s);
@@ -168,6 +178,9 @@ class LD2450Component : public Component, public uart::UARTDevice {
   uint32_t still_presence_millis_ = 0;
   uint32_t moving_presence_millis_ = 0;
   uint32_t timeout_ = 5;
+  // Host-side detection filter window: {min_angle, max_angle, min_distance, max_distance}.
+  // Defaults are full-range (filter disabled). Angle in degrees, distance in mm.
+  float detection_limits_[DETECTION_LIMIT_COUNT] = {-90.0f, 90.0f, 0.0f, 7560.0f};
   uint8_t buffer_data_[MAX_LINE_LENGTH];
   uint8_t mac_address_[6] = {0, 0, 0, 0, 0, 0};
   uint8_t version_[6] = {0, 0, 0, 0, 0, 0};
@@ -180,6 +193,8 @@ class LD2450Component : public Component, public uart::UARTDevice {
 #ifdef USE_NUMBER
   ESPPreferenceObject pref_;  // only used when numbers are in use
   ZoneOfNumbers zone_numbers_[MAX_ZONES];
+  number::Number *detection_limit_numbers_[DETECTION_LIMIT_COUNT] = {nullptr, nullptr, nullptr, nullptr};
+  ESPPreferenceObject detection_limit_prefs_[DETECTION_LIMIT_COUNT];
 #endif
 #ifdef USE_SENSOR
   std::array<SensorWithDedup<int16_t>, MAX_TARGETS> move_x_sensors_{};

@@ -179,6 +179,12 @@ void LD2450Component::setup() {
     this->pref_ = this->presence_timeout_number_->make_entity_preference<float>();
     this->set_presence_timeout();
   }
+  for (uint8_t i = 0; i < DETECTION_LIMIT_COUNT; i++) {
+    if (this->detection_limit_numbers_[i] != nullptr) {
+      this->detection_limit_prefs_[i] = this->detection_limit_numbers_[i]->make_entity_preference<float>();
+      this->set_detection_limit(i);
+    }
+  }
 #endif
   this->restart_and_read_all_info();
 }
@@ -249,6 +255,9 @@ void LD2450Component::dump_config() {
     LOG_NUMBER("  ", "ZoneX2", n.x2);
     LOG_NUMBER("  ", "ZoneY2", n.y2);
   }
+  ESP_LOGCONFIG(TAG, "  Detection filter: angle [%.0f, %.0f] deg, distance [%.0f, %.0f] mm",
+                this->detection_limits_[DETECTION_MIN_ANGLE], this->detection_limits_[DETECTION_MAX_ANGLE],
+                this->detection_limits_[DETECTION_MIN_DISTANCE], this->detection_limits_[DETECTION_MAX_DISTANCE]);
 #endif
 #ifdef USE_SELECT
   ESP_LOGCONFIG(TAG, "Selects:");
@@ -960,6 +969,27 @@ float LD2450Component::restore_from_flash_() {
     value = DEFAULT_PRESENCE_TIMEOUT;
   }
   return value;
+}
+
+void LD2450Component::set_detection_limit_number(uint8_t index, number::Number *n) {
+  this->detection_limit_numbers_[index] = n;
+}
+
+void LD2450Component::set_detection_limit(uint8_t index) {
+  number::Number *n = this->detection_limit_numbers_[index];
+  if (n == nullptr) {
+    return;
+  }
+  if (!n->has_state()) {
+    // First boot for this entity: restore from flash or fall back to the compiled default.
+    float value = this->detection_limits_[index];
+    this->detection_limit_prefs_[index].load(&value);
+    n->publish_state(value);
+    this->detection_limits_[index] = value;
+  } else {
+    this->detection_limit_prefs_[index].save(&n->state);
+    this->detection_limits_[index] = n->state;
+  }
 }
 #endif
 

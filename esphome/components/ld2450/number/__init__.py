@@ -6,6 +6,7 @@ from esphome.const import (
     DEVICE_CLASS_DISTANCE,
     ENTITY_CATEGORY_CONFIG,
     ICON_TIMELAPSE,
+    UNIT_DEGREES,
     UNIT_MILLIMETER,
     UNIT_SECOND,
 )
@@ -25,6 +26,20 @@ MAX_ZONES = 3
 
 PresenceTimeoutNumber = ld2450_ns.class_("PresenceTimeoutNumber", number.Number)
 ZoneCoordinateNumber = ld2450_ns.class_("ZoneCoordinateNumber", number.Number)
+DetectionLimitNumber = ld2450_ns.class_("DetectionLimitNumber", number.Number)
+
+CONF_MIN_DETECTION_ANGLE = "min_detection_angle"
+CONF_MAX_DETECTION_ANGLE = "max_detection_angle"
+CONF_MIN_DETECTION_DISTANCE = "min_detection_distance"
+CONF_MAX_DETECTION_DISTANCE = "max_detection_distance"
+
+# (conf key, C++ DetectionLimit index, min, max, step)
+DETECTION_LIMITS = [
+    (CONF_MIN_DETECTION_ANGLE, 0, -90, 90, 1),
+    (CONF_MAX_DETECTION_ANGLE, 1, -90, 90, 1),
+    (CONF_MIN_DETECTION_DISTANCE, 2, 0, 7560, 1),
+    (CONF_MAX_DETECTION_DISTANCE, 3, 0, 7560, 1),
+]
 
 CONFIG_SCHEMA = cv.Schema(
     {
@@ -35,6 +50,32 @@ CONFIG_SCHEMA = cv.Schema(
             unit_of_measurement=UNIT_SECOND,
             entity_category=ENTITY_CATEGORY_CONFIG,
             icon=ICON_TIMELAPSE,
+        ),
+        cv.Optional(CONF_MAX_DETECTION_ANGLE): number.number_schema(
+            DetectionLimitNumber,
+            unit_of_measurement=UNIT_DEGREES,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon="mdi:angle-acute",
+        ),
+        cv.Optional(CONF_MIN_DETECTION_ANGLE): number.number_schema(
+            DetectionLimitNumber,
+            unit_of_measurement=UNIT_DEGREES,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon="mdi:angle-acute",
+        ),
+        cv.Optional(CONF_MAX_DETECTION_DISTANCE): number.number_schema(
+            DetectionLimitNumber,
+            device_class=DEVICE_CLASS_DISTANCE,
+            unit_of_measurement=UNIT_MILLIMETER,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon="mdi:map-marker-distance",
+        ),
+        cv.Optional(CONF_MIN_DETECTION_DISTANCE): number.number_schema(
+            DetectionLimitNumber,
+            device_class=DEVICE_CLASS_DISTANCE,
+            unit_of_measurement=UNIT_MILLIMETER,
+            entity_category=ENTITY_CATEGORY_CONFIG,
+            icon="mdi:map-marker-distance",
         ),
     }
 )
@@ -89,6 +130,14 @@ async def to_code(config):
         )
         await cg.register_parented(n, config[CONF_LD2450_ID])
         cg.add(ld2450_component.set_presence_timeout_number(n))
+    for conf_key, index, min_value, max_value, step in DETECTION_LIMITS:
+        if (limit_config := config.get(conf_key)) is not None:
+            n = cg.new_Pvariable(limit_config[CONF_ID], index)
+            await number.register_number(
+                n, limit_config, min_value=min_value, max_value=max_value, step=step
+            )
+            await cg.register_parented(n, config[CONF_LD2450_ID])
+            cg.add(ld2450_component.set_detection_limit_number(index, n))
     for zone_num in range(MAX_ZONES):
         if zone_conf := config.get(f"zone_{zone_num + 1}"):
             zone_x1_config = zone_conf.get(CONF_X1)
