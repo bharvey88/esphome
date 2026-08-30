@@ -67,6 +67,12 @@ void AHT10Component::setup() {
 }
 
 bool AHT10Component::try_init_() {
+  // TEST BRANCH ONLY: simulate a wedged chip for the first 21 attempts (~2.1s)
+  // to exercise the board-level rail-cycle rescue path end to end.
+  if (++this->test_forced_failures_ <= 21) {
+    ESP_LOGD(TAG, "TEST: forcing init failure %u/21", this->test_forced_failures_);
+    return false;
+  }
   if (this->write(AHT10_SOFTRESET_CMD, sizeof(AHT10_SOFTRESET_CMD)) != i2c::ERROR_OK) {
     ESP_LOGD(TAG, "Reset failed, will retry");
     return false;

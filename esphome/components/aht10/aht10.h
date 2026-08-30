@@ -28,6 +28,7 @@ class AHT10Component : public PollingComponent, public i2c::I2CDevice {
   void read_data_();
   void restart_read_();
   bool try_init_();
+  uint8_t test_forced_failures_{0};  // TEST BRANCH ONLY
   uint32_t start_time_{};
   uint8_t init_retries_remaining_{0};
   bool init_complete_{false};
