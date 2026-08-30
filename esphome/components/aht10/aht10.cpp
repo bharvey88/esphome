@@ -37,8 +37,9 @@ static const uint8_t AHT10_STATUS_BUSY = 0x80;
 static const float AHT10_DIVISOR = 1048576.0f;  // 2^20, used for temperature and humidity calculations
 
 // Some AHT-series chips (notably AHT20) need extra settling time after power-on before they respond on the I2C bus.
-// If the very first init attempt fails, retry on a short interval rather than giving up.
-static constexpr uint8_t AHT10_INIT_MAX_RETRIES = 10;
+// If the very first init attempt fails, retry on a short interval rather than giving up. The budget is generous (5s)
+// so that external recovery (e.g. a board power-cycling the sensor's supply rail) can complete while retries continue.
+static constexpr uint8_t AHT10_INIT_MAX_RETRIES = 50;
 static constexpr uint32_t AHT10_INIT_RETRY_INTERVAL_MS = 100;
 static constexpr uint32_t AHT10_INIT_RETRY_ID = 0;
 
@@ -53,6 +54,8 @@ void AHT10Component::setup() {
     if (this->try_init_()) {
       this->cancel_interval(AHT10_INIT_RETRY_ID);
       this->status_clear_warning();
+      ESP_LOGI(TAG, "Init succeeded after %u retries",
+               static_cast<unsigned>(AHT10_INIT_MAX_RETRIES - this->init_retries_remaining_ + 1));
       return;
     }
     if (--this->init_retries_remaining_ == 0) {
