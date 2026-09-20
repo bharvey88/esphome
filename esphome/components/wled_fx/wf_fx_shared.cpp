@@ -15,6 +15,11 @@
 namespace esphome {
 namespace wled_fx {
 
+/* The bodies below keep WLED's own local variable names so a future WLED
+ * release can be diffed against them. Function signatures, types and members
+ * follow ESPHome's naming; only the locals are exempt. */
+// NOLINTBEGIN(readability-identifier-naming)
+
 // WLED util.cpp:727
 Prng &fx_prng() {
   static Prng prng(hw_random());
@@ -50,26 +55,22 @@ void blink(Segment &seg, uint32_t color1, uint32_t color2, bool strobe, bool do_
   }
 }
 
-///////////////////////
-//   * GRAVCENTER    //
-///////////////////////
-// Gravcenter effects By Andrew Tuline.
-// Gravcenter base function for Gravcenter (0), Gravcentric (1), Gravimeter (2), Gravfreq (3) (merged by @dedehai)
-
-void mode_colorwaves_pride_base(Segment &seg, bool isPride2015) {
+// WLED FX.cpp:1948. Combined function from the original pride and colorwaves,
+// by Mark Kriegsman.
+void mode_colorwaves_pride_base(Segment &seg, bool is_pride_2015) {
   const unsigned seg_len = seg.length();
   unsigned duration = 10 + seg.speed;
   unsigned sPseudotime = seg.step;
   unsigned sHue16 = seg.aux0;
 
-  uint8_t sat8 = isPride2015 ? beatsin88_t(87, 220, 250, seg.now) : 255;
+  uint8_t sat8 = is_pride_2015 ? beatsin88_t(87, 220, 250, seg.now) : 255;
   unsigned brightdepth = beatsin88_t(341, 96, 224, seg.now);
   unsigned brightnessthetainc16 = beatsin88_t(203, (25 * 256), (40 * 256), seg.now);
   unsigned msmultiplier = beatsin88_t(147, 23, 60, seg.now);
 
   unsigned hue16 = sHue16;
-  unsigned hueinc16 =
-      isPride2015 ? beatsin88_t(113, 1, 3000, seg.now) : beatsin88_t(113, 60, 300, seg.now) * seg.intensity * 10 / 255;
+  unsigned hueinc16 = is_pride_2015 ? beatsin88_t(113, 1, 3000, seg.now)
+                                    : beatsin88_t(113, 60, 300, seg.now) * seg.intensity * 10 / 255;
 
   sPseudotime += duration * msmultiplier;
   sHue16 += duration * beatsin88_t(400, 5, 9, seg.now);
@@ -79,7 +80,7 @@ void mode_colorwaves_pride_base(Segment &seg, bool isPride2015) {
     hue16 += hueinc16;
     uint8_t hue8;
 
-    if (isPride2015) {
+    if (is_pride_2015) {
       hue8 = hue16 >> 8;
     } else {
       unsigned h16_128 = hue16 >> 7;
@@ -92,7 +93,7 @@ void mode_colorwaves_pride_base(Segment &seg, bool isPride2015) {
     uint8_t bri8 = (uint32_t) (((uint32_t) bri16) * brightdepth) / 65536;
     bri8 += (255 - brightdepth);
 
-    if (isPride2015) {
+    if (is_pride_2015) {
       CRGBW newcolor = CRGB(CHSV(hue8, sat8, bri8));
       newcolor.color32 = gamma32inv(newcolor.color32);
       seg.blend_pixel_color(i, newcolor, 64);
@@ -104,6 +105,8 @@ void mode_colorwaves_pride_base(Segment &seg, bool isPride2015) {
   seg.step = sPseudotime;
   seg.aux0 = sHue16;
 }
+
+// NOLINTEND(readability-identifier-naming)
 
 }  // namespace wled_fx
 }  // namespace esphome

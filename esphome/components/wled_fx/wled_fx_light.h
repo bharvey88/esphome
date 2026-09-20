@@ -11,8 +11,11 @@ namespace wled_fx {
  * that is size() x 1. A matrix wired as one strip is described with width, height
  * and serpentine, the same vocabulary the addressable_light display platform uses.
  *
- * The canvas is allocated on the first start() and kept for the lifetime of the
- * effect object, so no allocation happens while frames are running. */
+ * The canvas is allocated in init(), which the light calls once while it is
+ * setting up, and kept for the lifetime of the effect object. The only later
+ * allocation is the effect's own scratch data, which WLED's model sizes from the
+ * effect and so cannot be sized before one is chosen; it is allocated on effect
+ * change and never per frame. */
 class WledFxLightEffect : public light::AddressableLightEffect {
  public:
   explicit WledFxLightEffect(const char *name) : light::AddressableLightEffect(name) {}
@@ -27,6 +30,7 @@ class WledFxLightEffect : public light::AddressableLightEffect {
   void set_frame_interval(uint32_t interval_ms) { this->frame_interval_ = interval_ms; }
   void set_use_light_color(bool use) { this->use_light_color_ = use; }
 
+  void init() override;
   void start() override;
   void stop() override;
   void apply(light::AddressableLight &it, const Color &current_color) override;
@@ -37,8 +41,11 @@ class WledFxLightEffect : public light::AddressableLightEffect {
   int height_{0};
   bool serpentine_{false};
   bool use_light_color_{true};
-  uint32_t frame_interval_{33};
+  // WLED's FRAMETIME at its default WLED_FPS of 42. Kept in step with the schema
+  // default in __init__.py.
+  uint32_t frame_interval_{1000 / 42};
   uint32_t last_frame_{0};
+  bool allocated_{false};
   bool ready_{false};
 };
 

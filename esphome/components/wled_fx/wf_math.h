@@ -172,57 +172,6 @@ inline long wf_map(long x, long in_min, long in_max, long out_min, long out_max)
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-// --- Arduino compatibility ------------------------------------------------------
-/* WLED effect bodies use a handful of Arduino macros. Under the esp-idf framework
- * and in the host simulator they do not exist, so they are defined here as
- * ordinary functions inside the namespace.
- *
- * Under the Arduino framework every one of them is already a macro, and a macro
- * eats a function definition of the same name before the compiler ever sees it.
- * Each definition is therefore guarded. Arduino's versions are arithmetically
- * identical to these, so an effect body behaves the same either way, and whichever
- * one is in scope at the call site is the right answer. */
-
-#ifndef constrain
-// The parameter types are separate so the usual mixed-type call sites, such as
-// constrain(someFloat, 0, 255), still compile.
-template<typename T, typename L, typename H> inline T constrain(T x, L low, H high) {
-  const T lo = static_cast<T>(low);
-  const T hi = static_cast<T>(high);
-  return x < lo ? lo : (x > hi ? hi : x);
-}
-#endif
-
-#ifndef radians
-inline constexpr float radians(float deg) { return deg * 0.017453292519943295f; }
-#endif
-#ifndef degrees
-inline constexpr float degrees(float rad) { return rad * 57.29577951308232f; }
-#endif
-
-// PROGMEM readers. There is no separate program address space on the targets this
-// component builds for, so these are plain loads.
-#ifndef pgm_read_byte_near
-inline uint8_t pgm_read_byte_near(const void *addr) { return *static_cast<const uint8_t *>(addr); }
-#endif
-#ifndef pgm_read_byte
-inline uint8_t pgm_read_byte(const void *addr) { return *static_cast<const uint8_t *>(addr); }
-#endif
-#ifndef pgm_read_word_near
-inline uint16_t pgm_read_word_near(const void *addr) {
-  uint16_t v;
-  memcpy(&v, addr, sizeof(v));
-  return v;
-}
-#endif
-#ifndef pgm_read_dword_near
-inline uint32_t pgm_read_dword_near(const void *addr) {
-  uint32_t v;
-  memcpy(&v, addr, sizeof(v));
-  return v;
-}
-#endif
-
 // WLED spells the float trigonometry sin_t / cos_t / tan_t, which are macros over
 // the approximations above. Effect bodies keep those names.
 inline float sin_t(float theta) { return sin_approx(theta); }

@@ -5,10 +5,8 @@
  * is what lets the effect bodies keep WLED's lossless read-back behaviour on every
  * output type.
  *
- * Copyright (c) 2016-present Christian Schwinne and individual WLED contributors
- * for the parts derived from WLED 16.0.1.
- * Licensed under the EUPL v. 1.2 or later, distributed here under GPLv3 per the
- * EUPL Article 5 compatibility clause.
+ * This file is original work. It holds no WLED code; only the role it plays
+ * comes from WLED.
  */
 
 #include <cstddef>

@@ -82,9 +82,6 @@ extern const unsigned LINKED_EFFECT_GROUP_COUNT;
 
 class EffectRegistry {
  public:
-  static size_t group_count() { return LINKED_EFFECT_GROUP_COUNT; }
-  static const EffectGroup &group(size_t index) { return *LINKED_EFFECT_GROUPS[index]; }
-
   static size_t count();
   static const EffectInfo *at(size_t index);
   static const EffectInfo *find(const char *name);

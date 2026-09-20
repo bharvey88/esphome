@@ -8,7 +8,7 @@ namespace wled_fx {
 
 static const char *const TAG = "wled_fx";
 
-void WledFxLightEffect::start() {
+void WledFxLightEffect::init() {
   auto *out = static_cast<light::AddressableLight *>(this->state_->get_output());
   const int size = out->size();
 
@@ -22,23 +22,26 @@ void WledFxLightEffect::start() {
   } else if (height <= 0) {
     height = width > 0 ? size / width : 1;
   }
-  if (width * height > size) {
+  if (static_cast<int64_t>(width) * height > size) {
     ESP_LOGW(TAG, "%dx%d is larger than the light (%d pixels), clamping", width, height, size);
-    height = size / (width > 0 ? width : 1);
+    height = size / width;
   }
   if (width <= 0 || height <= 0) {
     ESP_LOGE(TAG, "Bad geometry %dx%d", width, height);
     return;
   }
 
-  if (!this->engine_.canvas().is_allocated() &&
-      !this->engine_.init(static_cast<uint16_t>(width), static_cast<uint16_t>(height))) {
+  if (!this->engine_.init(static_cast<uint16_t>(width), static_cast<uint16_t>(height))) {
     ESP_LOGE(TAG, "Canvas allocation failed for %dx%d", width, height);
     return;
   }
   this->width_ = width;
   this->height_ = height;
-  this->ready_ = true;
+  this->allocated_ = true;
+}
+
+void WledFxLightEffect::start() {
+  this->ready_ = this->allocated_;
   this->last_frame_ = 0;
 }
 

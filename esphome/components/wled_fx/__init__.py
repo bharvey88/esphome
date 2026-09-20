@@ -14,22 +14,23 @@ from esphome.components.light.effects import register_addressable_effect
 from esphome.components.light.types import AddressableLightEffect
 import esphome.config_validation as cv
 from esphome.const import (
+    CONF_EFFECT,
+    CONF_EFFECTS,
     CONF_HEIGHT,
     CONF_ID,
+    CONF_INTENSITY,
     CONF_NAME,
+    CONF_SPEED,
     CONF_UPDATE_INTERVAL,
     CONF_WIDTH,
 )
 from esphome.types import ConfigType
 
 CODEOWNERS = ["@bharvey88"]
+DEPENDENCIES = ["light"]
 DOMAIN = "wled_fx"
 
-CONF_EFFECTS = "effects"
-CONF_EFFECT = "effect"
 CONF_PALETTE = "palette"
-CONF_SPEED = "speed"
-CONF_INTENSITY = "intensity"
 CONF_CUSTOM1 = "custom1"
 CONF_CUSTOM2 = "custom2"
 CONF_CUSTOM3 = "custom3"
@@ -38,6 +39,11 @@ CONF_CHECK2 = "check2"
 CONF_CHECK3 = "check3"
 CONF_SERPENTINE = "serpentine"
 CONF_USE_LIGHT_COLOR = "use_light_color"
+
+# WLED's FRAMETIME at its default WLED_FPS of 42, which is the frame period the
+# effect bodies were written against. Kept in step with FRAMETIME in wf_segment.h
+# and with frame_interval_ in wled_fx_light.h.
+FRAMETIME = "23ms"
 
 wled_fx_ns = cg.esphome_ns.namespace("wled_fx")
 WledFxLightEffect = wled_fx_ns.class_("WledFxLightEffect", AddressableLightEffect)
@@ -83,10 +89,53 @@ def _discover_effect_groups() -> dict[str, set[str]]:
     return groups
 
 
-CONFIG_SCHEMA = cv.Schema(
-    {
-        cv.Optional(CONF_EFFECTS): cv.ensure_list(cv.string),
-    }
+def _known_effect_macros() -> set[str]:
+    known: set[str] = set()
+    for provides in _discover_effect_groups().values():
+        known |= provides
+    return known
+
+
+def _validate_effect_names(config: ConfigType) -> ConfigType:
+    """Rejects an allow-list name that no effect answers to.
+
+    Without this the name is simply dropped, and the build quietly comes out
+    with fewer effects than the YAML asked for.
+    """
+    known = _known_effect_macros()
+    for index, name in enumerate(config.get(CONF_EFFECTS, [])):
+        if effect_macro(name) not in known:
+            raise cv.Invalid(
+                f"No effect is called '{name}'. Names are the WLED display "
+                "names, for example 'Fire 2012'.",
+                path=[CONF_EFFECTS, index],
+            )
+    return config
+
+
+def _validate_chosen_effect(config: ConfigType) -> ConfigType:
+    """Rejects an 'effect:' the engine would not find at runtime.
+
+    A name that matches nothing leaves the engine on whichever effect is first
+    in the registry, which looks like the component ignoring the config.
+    """
+    name = config.get(CONF_EFFECT)
+    if name is not None and effect_macro(name) not in _known_effect_macros():
+        raise cv.Invalid(
+            f"No effect is called '{name}'. Names are the WLED display names, "
+            "for example 'Fire 2012'.",
+            path=[CONF_EFFECT],
+        )
+    return config
+
+
+CONFIG_SCHEMA = cv.All(
+    cv.Schema(
+        {
+            cv.Optional(CONF_EFFECTS): cv.ensure_list(cv.string),
+        }
+    ),
+    _validate_effect_names,
 )
 
 CONTROL_SCHEMA = {
@@ -109,7 +158,7 @@ LIGHT_EFFECT_SCHEMA = {
     cv.Optional(CONF_SERPENTINE, default=False): cv.boolean,
     cv.Optional(CONF_USE_LIGHT_COLOR, default=True): cv.boolean,
     cv.Optional(
-        CONF_UPDATE_INTERVAL, default="33ms"
+        CONF_UPDATE_INTERVAL, default=FRAMETIME
     ): cv.positive_time_period_milliseconds,
     **CONTROL_SCHEMA,
 }
@@ -134,12 +183,6 @@ async def to_code(config: ConfigType) -> None:
         for symbol, provides in sorted(_discover_effect_groups().items())
         if all_effects or (provides & macros)
     ]
-    if not linked:
-        raise cv.Invalid(
-            "The 'effects' list selected no effect that exists. Effect names are "
-            "the WLED display names, for example 'Fire 2012'.",
-            path=[CONF_EFFECTS],
-        )
     declarations = "".join(f"extern const EffectGroup {s};" for s in linked)
     references = ", ".join(f"&{s}" for s in linked)
     cg.add_global(
@@ -159,6 +202,7 @@ async def to_code(config: ConfigType) -> None:
     "WLED FX",
     LIGHT_EFFECT_SCHEMA,
     cv.requires_component(DOMAIN),
+    _validate_chosen_effect,
 )
 async def wled_fx_light_effect_to_code(config: ConfigType, effect_id):
     var = cg.new_Pvariable(config.get(CONF_ID, effect_id), config[CONF_NAME])

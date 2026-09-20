@@ -35,7 +35,7 @@ void blink(Segment &seg, uint32_t color1, uint32_t color2, bool strobe, bool do_
 
 // WLED FX.cpp:1948. Combined function from the original pride and colorwaves, by
 // Mark Kriegsman.
-void mode_colorwaves_pride_base(Segment &seg, bool isPride2015);
+void mode_colorwaves_pride_base(Segment &seg, bool is_pride_2015);
 
 }  // namespace wled_fx
 }  // namespace esphome

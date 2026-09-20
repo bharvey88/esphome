@@ -57,8 +57,6 @@ class Engine {
   void clear_override(uint16_t flag) { this->overrides_ &= ~flag; }
 
   void set_primary_color(uint32_t c) { this->seg_.colors[0] = c; }
-  void set_secondary_color(uint32_t c) { this->seg_.colors[1] = c; }
-  void set_tertiary_color(uint32_t c) { this->seg_.colors[2] = c; }
 
   // Runs one frame at timestamp now (milliseconds).
   void render(uint32_t now);

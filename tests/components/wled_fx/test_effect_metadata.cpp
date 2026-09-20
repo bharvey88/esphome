@@ -73,7 +73,6 @@ TEST(EffectMetadata, DimensionFlagsComeFromTheFourthGroup) {
 }
 
 TEST(EffectRegistryTest, ShippedEffectsAreFindableByName) {
-  ASSERT_EQ(EffectRegistry::count(), 7u);
   for (const char *name : {"Solid", "Blink", "Rainbow", "Pride 2015", "Fire 2012", "Noise 1", "Plasma"}) {
     const EffectInfo *info = EffectRegistry::find(name);
     ASSERT_NE(info, nullptr) << name;

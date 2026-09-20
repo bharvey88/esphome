@@ -24,6 +24,11 @@ namespace esphome {
 namespace wled_fx {
 namespace {
 
+/* The effect bodies keep WLED's own local variable names so a future WLED
+ * release can be diffed against them. Only the locals are exempt; everything
+ * they call follows ESPHome's naming. */
+// NOLINTBEGIN(readability-identifier-naming)
+
 #if WLED_FX_DEFAULT_ENABLE || WLED_FX_FX_SOLID
 /*
  * No blinking. Just plain old static light.
@@ -195,6 +200,8 @@ const EffectInfo ENTRIES[] = {
 #endif
 };
 constexpr size_t ENTRY_COUNT = sizeof(ENTRIES) / sizeof(ENTRIES[0]);
+
+// NOLINTEND(readability-identifier-naming)
 
 }  // namespace
 

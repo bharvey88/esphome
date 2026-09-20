@@ -32,29 +32,19 @@ enum Mapping1D2D : uint8_t {
   M12_S_PINWHEEL = 4,
 };
 
-// WLED's nominal frame period at its default 24 fps target.
+// WLED's nominal frame period at its default WLED_FPS of 42.
 inline constexpr uint32_t FRAMETIME = 1000 / 42;
 
-// WLED FX.h's FRAMETIME_FIXED, the frame period at WLED_FPS regardless of what the
-// strip is actually managing. Effects that rate limit themselves against a fixed
-// period use this rather than FRAMETIME.
+// WLED FX.h's FRAMETIME_FIXED: the frame period at WLED_FPS regardless of the
+// rate the strip is managing. Effects that rate limit themselves use this.
 inline constexpr uint32_t FRAMETIME_FIXED = 1000 / 42;
+
+/* WLED FX.h:101, MAX_SEGMENT_DATA / MAX_NUM_SEGMENTS on a plain ESP32. Effects
+ * use it as the upper bound on how many particles or sparks they allocate. */
+inline constexpr unsigned FAIR_DATA_PER_SEG = (64 * 1024) / 32;
 
 // WLED const.h: the number of colour slots a segment carries.
 inline constexpr unsigned NUM_COLORS = 3;
-
-/* WLED FX.h:101, FAIR_DATA_PER_SEG = MAX_SEGMENT_DATA / MAX_NUM_SEGMENTS: the share
- * of the effect data budget one segment out of many may claim, which effects use as
- * an upper bound on how many particles, balls or sparks they allocate.
- *
- * Upstream on a plain ESP32 that is (64 * 1024) / 32 = 2048. A board with PSRAM
- * raises MAX_NUM_SEGMENTS to 64 and so *lowers* the figure to 1024, because the
- * budget is shared out more ways, and upstream then lifts the cap entirely when
- * PSRAM is present. There is one canvas and one segment here, so the plain ESP32
- * value is taken as the single fixed figure: it is the larger of the two upstream
- * numbers, it is what nearly every WLED user actually runs, and it keeps particle
- * counts matching upstream on a large matrix. */
-inline constexpr unsigned FAIR_DATA_PER_SEG = (64 * 1024) / 32;
 
 class Segment {
  public:
