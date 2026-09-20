@@ -1,0 +1,5 @@
+substitutions:
+  pin1: GPIO13
+
+packages:
+  wled_fx: !include common.yaml

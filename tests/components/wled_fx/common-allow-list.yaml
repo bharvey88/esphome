@@ -1,0 +1,19 @@
+# Only the named effects are compiled in. Everything else, including the group
+# each unlisted effect belongs to, drops out of the build.
+wled_fx:
+  effects:
+    - Fire 2012
+    - Rainbow
+
+light:
+  - platform: esp32_rmt_led_strip
+    id: wled_fx_trimmed_strip
+    name: WLED FX Trimmed Strip
+    pin: ${pin1}
+    num_leds: 30
+    channel_colors: GRB
+    chipset: ws2812
+    effects:
+      - wled_fx:
+          name: WLED FX trimmed
+          effect: Fire 2012
