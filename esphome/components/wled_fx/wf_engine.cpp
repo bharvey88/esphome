@@ -1,7 +1,6 @@
 #include "wf_engine.h"
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 bool Engine::init(uint16_t width, uint16_t height) {
   if (!this->canvas_.allocate(width, height))
@@ -112,5 +111,4 @@ void Engine::render(uint32_t now) {
   this->seg_.call++;
 }
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

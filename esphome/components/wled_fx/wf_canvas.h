@@ -14,8 +14,7 @@
 
 #include "wf_platform.h"
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 // Words of sentinel written either side of the framebuffer. The host simulator
 // checks them after every frame; on device they are simply unused headroom.
@@ -53,5 +52,4 @@ class Canvas {
   uint16_t height_{0};
 };
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

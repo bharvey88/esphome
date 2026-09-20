@@ -10,6 +10,8 @@ namespace esphome::wled_fx {
 // Codegen emits this table into the generated main.cpp. The unit test build has no
 // codegen, so it names the one group this component currently ships.
 extern const EffectGroup EFFECT_GROUP_1D_A;
+// The initialiser is an address constant, so there is no dynamic-init ordering here.
+// NOLINTNEXTLINE(cppcoreguidelines-interfaces-global-init)
 const EffectGroup *const LINKED_EFFECT_GROUPS[] = {&EFFECT_GROUP_1D_A};
 const unsigned LINKED_EFFECT_GROUP_COUNT = 1;
 
@@ -100,10 +102,10 @@ TEST(PaletteTest, NamesResolveBothWaysAndAreCaseInsensitive) {
 TEST(PaletteTest, EveryPaletteIdLoadsWithoutReadingPastTheTable) {
   const uint32_t colors[3] = {0xFFAA00, 0x0000FF, 0x00FF00};
   const CRGBPalette16 random_palette = generate_random_palette();
-  for (uint8_t pal = 0; pal < palette_count(); pal++) {
+  for (size_t pal = 0; pal < palette_count(); pal++) {
     CRGBPalette16 target{};
-    load_palette(target, pal, colors, random_palette);
-    EXPECT_NE(PALETTE_NAMES[pal], nullptr) << "palette " << static_cast<int>(pal);
+    load_palette(target, static_cast<uint8_t>(pal), colors, random_palette);
+    EXPECT_NE(PALETTE_NAMES[pal], nullptr) << "palette " << pal;
   }
 }
 

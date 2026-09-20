@@ -48,8 +48,7 @@
 #define M_TWOPI (M_PI * 2.0)
 #endif
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 // --- scaling, derived from FastLED ---------------------------------------------
 
@@ -166,7 +165,7 @@ class Prng {
 };
 
 // Integer map with WLED / Arduino semantics. Effect bodies use bare map().
-inline long wf_map(long x, long in_min, long in_max, long out_min, long out_max) {
+inline int32_t wf_map(int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, int32_t out_max) {
   if (in_max == in_min)
     return out_min;
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
@@ -178,5 +177,4 @@ inline float sin_t(float theta) { return sin_approx(theta); }
 inline float cos_t(float theta) { return cos_approx(theta); }
 inline float tan_t(float x) { return tan_approx(x); }
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

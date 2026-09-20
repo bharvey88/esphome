@@ -15,8 +15,7 @@
 
 #include "wf_segment.h"
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 using EffectFn = void (*)(Segment &seg);
 
@@ -88,5 +87,4 @@ class EffectRegistry {
   static int index_of(const char *name);
 };
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

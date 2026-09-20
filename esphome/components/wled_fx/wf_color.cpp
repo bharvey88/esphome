@@ -3,8 +3,7 @@
 
 #include "wf_color.h"
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 // derived from FastLED
 void hsv2rgb_rainbow(uint16_t h, uint8_t s, uint8_t v, uint8_t *rgbdata, bool is_rgbw) {
@@ -352,10 +351,11 @@ uint32_t ColorFromPalette(const CRGBPalette16 &pal, unsigned index, uint8_t brig
   unsigned green1 = entry->g;
   unsigned blue1 = entry->b;
   if (lo4 && blend_type != NOBLEND) {
-    if (hi4 == 15)
+    if (hi4 == 15) {
       entry = &pal[0];
-    else
+    } else {
       ++entry;
+    }
     unsigned f2 = lo4 << 4;
     unsigned f1 = 256 - f2;
     red1 = (red1 * f1 + static_cast<unsigned>(entry->r) * f2) >> 8;
@@ -442,12 +442,13 @@ void rgb2hsv(const CRGBW &rgb, CHSV32 &hsv) {
   delta = maxval - minval;
   if (delta != 0) {
     hsv.s = (255 * delta) / maxval;
-    if (maxval == static_cast<uint32_t>(r))
+    if (maxval == static_cast<uint32_t>(r)) {
       hsv.h = static_cast<uint16_t>((10923 * (g - b)) / delta);
-    else if (maxval == static_cast<uint32_t>(g))
+    } else if (maxval == static_cast<uint32_t>(g)) {
       hsv.h = static_cast<uint16_t>(21845 + (10923 * (b - r)) / delta);
-    else
+    } else {
       hsv.h = static_cast<uint16_t>(43690 + (10923 * (r - g)) / delta);
+    }
   } else {
     hsv.s = 0;
     hsv.h = 0;
@@ -473,5 +474,4 @@ void adjust_color(CRGBW &rgb, int32_t hue_shift, int32_t sat_change, int32_t val
   hsv2rgb_spectrum(hsv, rgb);
 }
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

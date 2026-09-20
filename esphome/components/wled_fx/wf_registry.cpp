@@ -5,8 +5,7 @@
 #include <cstdlib>
 #include <cstring>
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 namespace {
 
@@ -62,7 +61,7 @@ EffectDefaults effect_defaults(const EffectInfo &info) {
   // Group 3 is the palette section: a leading digit is the default palette ID.
   const char *palette_group = group_at(info.metadata, 2);
   if (palette_group != nullptr && *palette_group >= '0' && *palette_group <= '9')
-    out.palette = static_cast<uint8_t>(atoi(palette_group));
+    out.palette = static_cast<uint8_t>(strtol(palette_group, nullptr, 10));
 
   // Group 4 is the dimensionality and audio flag set.
   const char *flag_group = group_at(info.metadata, 3);
@@ -122,7 +121,7 @@ EffectDefaults effect_defaults(const EffectInfo &info) {
       continue;
     }
     const size_t key_len = static_cast<size_t>(eq - p);
-    const int value = atoi(eq + 1);
+    const int32_t value = static_cast<int32_t>(strtol(eq + 1, nullptr, 10));
     for (const auto &kt : numeric) {
       if (strlen(kt.key) == key_len && strncmp(p, kt.key, key_len) == 0) {
         *kt.target = static_cast<uint8_t>(value);
@@ -175,5 +174,4 @@ int EffectRegistry::index_of(const char *name) {
   return -1;
 }
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

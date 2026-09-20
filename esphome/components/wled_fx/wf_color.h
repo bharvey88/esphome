@@ -21,12 +21,12 @@
 
 #include "wf_math.h"
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 // 32 bit colour packing, 0xWWRRGGBB. WLED spells these as macros; here they are
 // namespaced inline functions so effect bodies stay verbatim without polluting the
-// global namespace.
+// global namespace. The names are WLED's, so they keep its case.
+// NOLINTBEGIN(readability-identifier-naming)
 inline constexpr uint32_t RGBW32(uint32_t r, uint32_t g, uint32_t b, uint32_t w = 0) {
   return ((w & 0xFF) << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
 }
@@ -34,6 +34,7 @@ inline constexpr uint8_t R(uint32_t c) { return static_cast<uint8_t>(c >> 16); }
 inline constexpr uint8_t G(uint32_t c) { return static_cast<uint8_t>(c >> 8); }
 inline constexpr uint8_t B(uint32_t c) { return static_cast<uint8_t>(c); }
 inline constexpr uint8_t W(uint32_t c) { return static_cast<uint8_t>(c >> 24); }
+// NOLINTEND(readability-identifier-naming)
 
 inline constexpr uint32_t BLACK = 0x000000;
 inline constexpr uint32_t WHITE = 0xFFFFFF;
@@ -107,6 +108,9 @@ struct CHSV {
   inline const uint8_t &operator[](uint8_t x) const { return raw[x]; }
 };
 
+// CRGB, CHSV32 and CRGBW reproduce the FastLED / WLED member interface that the
+// ported effect bodies call, so their member names must keep FastLED's case.
+// NOLINTBEGIN(readability-identifier-naming)
 struct CRGB {
   union {
     struct {
@@ -503,6 +507,7 @@ struct CRGBW {
   inline uint8_t getAverageLight() const { return (r + g + b + w) >> 2; }
   inline uint8_t getRGBaverage() const { return ((r + g + b) * 21846) >> 16; }
 };
+// NOLINTEND(readability-identifier-naming)
 
 class CRGBPalette16 {
  public:
@@ -511,7 +516,8 @@ class CRGBPalette16 {
   CRGBPalette16() { memset(entries, 0, sizeof(entries)); }
   CRGBPalette16(const CRGBPalette16 &rhs) { memmove(&entries[0], &rhs.entries[0], sizeof(entries)); }
   CRGBPalette16 &operator=(const CRGBPalette16 &rhs) {
-    memmove(&entries[0], &rhs.entries[0], sizeof(entries));
+    if (this != &rhs)
+      memmove(&entries[0], &rhs.entries[0], sizeof(entries));
     return *this;
   }
   CRGBPalette16(const CRGB rhs[16]) {  // NOLINT(google-explicit-constructor)
@@ -571,12 +577,14 @@ uint32_t color_blend(uint32_t color1, uint32_t color2, uint8_t blend);
 inline uint32_t color_blend16(uint32_t c1, uint32_t c2, uint16_t b) { return color_blend(c1, c2, b >> 8); }
 uint32_t color_add(uint32_t c1, uint32_t c2, bool preserve_cr = false);
 uint32_t color_fade(uint32_t c1, uint8_t amount, bool video = false);
+// Free functions the effect bodies call by their FastLED / WLED names.
+// NOLINTBEGIN(readability-identifier-naming)
 uint32_t ColorFromPalette(const CRGBPalette16 &pal, unsigned index, uint8_t brightness = 255,
                           TBlendType blend_type = LINEARBLEND);
 void hsv2rgb_spectrum(const CHSV32 &hsv, CRGBW &rgb);
 void hsv2rgb_spectrum(const CHSV &hsv, CRGB &rgb);
 void rgb2hsv(const CRGBW &rgb, CHSV32 &hsv);
-CHSV rgb2hsv(const CRGB c);
+CHSV rgb2hsv(CRGB c);
 void adjust_color(CRGBW &rgb, int32_t hue_shift, int32_t sat_change, int32_t value_change);
 CRGB HeatColor(uint8_t temperature);
 void fill_solid_RGB(CRGB *colors, uint32_t num, const CRGB &c1);
@@ -585,6 +593,7 @@ void fill_gradient_RGB(CRGB *colors, uint32_t num, const CRGB &c1, const CRGB &c
 void fill_gradient_RGB(CRGB *colors, uint32_t num, const CRGB &c1, const CRGB &c2, const CRGB &c3);
 void fill_gradient_RGB(CRGB *colors, uint32_t num, const CRGB &c1, const CRGB &c2, const CRGB &c3, const CRGB &c4);
 void nblendPaletteTowardPalette(CRGBPalette16 &current, CRGBPalette16 &target, uint8_t max_changes);
+// NOLINTEND(readability-identifier-naming)
 
 // Fast colour scale: c * scale / 256 on all four channels, speed over accuracy.
 inline uint32_t fast_color_scale(const uint32_t c, const uint8_t scale) {
@@ -613,5 +622,4 @@ inline void CRGBW::adjust_hue(int hueshift) {
 }
 inline CRGBW hsv2rgb(const CHSV32 &hsv) { return CRGBW(hsv); }
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

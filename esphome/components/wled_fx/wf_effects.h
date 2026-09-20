@@ -23,15 +23,13 @@
  * gets its own WLED_FX_FX_<NAME>=1. An undefined macro evaluates to 0 inside #if,
  * so the per-effect guards need no `defined()`. */
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 // Paints the primary color over the whole canvas, which is what WLED falls back
 // to when an effect cannot run on the current geometry.
 inline void fill_with_primary(Segment &seg) { seg.fill(seg.color(0)); }
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx
 
 /* WLED's early-out for that case. It has to be a macro because it returns from
  * the effect, and upstream spells it the same way, which keeps effect bodies

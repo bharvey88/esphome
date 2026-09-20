@@ -13,8 +13,7 @@
 
 #include "wf_palettes.h"
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 /*
  * WLED Color palettes
@@ -29,6 +28,11 @@ namespace wled_fx {
 // ----------------
 // Palettes imported from FastLED @ 3.6.0 (https://github.com/FastLED/FastLED) are licensed under the MIT license
 // See /src/dependencies/fastled_slim/LICENSE.txt for details
+
+// Each table keeps the identifier its source uses: the FastLED palette name, or the
+// cpt-city file the gradient was imported from. Renaming them would break the only
+// link back to the original data.
+// NOLINTBEGIN(readability-identifier-naming)
 
 // Cloudy color palette
 static const TProgmemRGBPalette16 CloudColors_p = {CRGB::Blue,      CRGB::DarkBlue, CRGB::DarkBlue,  CRGB::DarkBlue,
@@ -409,6 +413,7 @@ static const TProgmemRGBPalette16 RainbowColors_gc22 = {0xFF0000, 0xEB7000, 0xD5
 static const TProgmemRGBPalette16 RainbowStripeColors_gc22 = {
     0xFF0000, 0x000000, 0xD59B00, 0x000000, 0xD5D500, 0x000000, 0x00FF00, 0x000000,
     0x00D59B, 0x000000, 0x0000FF, 0x000000, 0x9B00D5, 0x000000, 0xD5009B, 0x000000};
+// NOLINTEND(readability-identifier-naming)
 
 // array of fastled palettes (palette 6 - 12)
 const TProgmemRGBPalette16 *const FASTLED_PALETTES[] = {
@@ -490,5 +495,4 @@ const uint8_t *const GRADIENT_PALETTES[] = {
 const size_t GRADIENT_PALETTE_COUNT = sizeof(GRADIENT_PALETTES) / sizeof(GRADIENT_PALETTES[0]);
 const size_t FASTLED_PALETTE_COUNT = sizeof(FASTLED_PALETTES) / sizeof(FASTLED_PALETTES[0]);
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

@@ -20,8 +20,7 @@
 
 #if WLED_FX_GROUP_1D_A
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 namespace {
 
 /* The effect bodies keep WLED's own local variable names so a future WLED
@@ -210,7 +209,6 @@ constexpr size_t ENTRY_COUNT = sizeof(ENTRIES) / sizeof(ENTRIES[0]);
 extern const EffectGroup EFFECT_GROUP_1D_A;
 const EffectGroup EFFECT_GROUP_1D_A{"1d_a", ENTRIES, ENTRY_COUNT};
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx
 
 #endif  // WLED_FX_GROUP_1D_A

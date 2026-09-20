@@ -2,8 +2,7 @@
 
 #include <cstring>
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 bool Canvas::allocate(uint16_t width, uint16_t height) {
   this->release();
@@ -54,5 +53,4 @@ bool Canvas::guards_intact() const {
   return true;
 }
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

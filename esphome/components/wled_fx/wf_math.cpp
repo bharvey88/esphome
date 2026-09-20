@@ -4,13 +4,13 @@
 #include "wf_math.h"
 
 #include <cmath>
+#include <numbers>
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 namespace {
 
-constexpr float PI_F = 3.14159265358979323846f;
+constexpr float PI_F = std::numbers::pi_v<float>;
 constexpr float HALF_PI_F = PI_F / 2.0f;
 constexpr float QUARTER_PI_F = PI_F / 4.0f;
 constexpr float TWO_PI_F = PI_F * 2.0f;
@@ -174,15 +174,17 @@ uint32_t sqrt32_bw(uint32_t x) {
   uint32_t bit;
   uint32_t num = x;
 
-  if (num < (1u << 10))
+  if (num < (1u << 10)) {
     bit = 1u << 10;
-  else if (num < (1u << 20))
+  } else if (num < (1u << 20)) {
     bit = 1u << 20;
-  else
+  } else {
     bit = 1u << 30;
+  }
 
-  while (bit > num)
+  while (bit > num) {
     bit >>= 2;
+  }
 
   while (bit != 0) {
     if (num >= res + bit) {
@@ -439,5 +441,4 @@ uint8_t hw_random8(uint32_t lowerlimit, uint32_t upperlimit) {
   return static_cast<uint8_t>(lowerlimit + hw_random(upperlimit - lowerlimit));
 }
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

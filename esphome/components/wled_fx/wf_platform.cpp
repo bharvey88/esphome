@@ -5,8 +5,7 @@
 #include "esphome/core/hal.h"
 #include "esphome/core/helpers.h"
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 uint32_t platform_random_u32() { return random_uint32(); }
 
@@ -28,5 +27,4 @@ void platform_free(void *ptr) {
   allocator.deallocate(static_cast<uint8_t *>(ptr), 0);
 }
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

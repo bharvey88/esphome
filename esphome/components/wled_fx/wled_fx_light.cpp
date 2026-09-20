@@ -3,8 +3,7 @@
 #include "esphome/core/application.h"
 #include "esphome/core/log.h"
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 static const char *const TAG = "wled_fx";
 
@@ -80,5 +79,4 @@ void WledFxLightEffect::apply(light::AddressableLight &it, const Color &current_
   it.schedule_show();
 }
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

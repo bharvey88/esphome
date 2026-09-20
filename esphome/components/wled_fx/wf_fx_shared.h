@@ -19,8 +19,7 @@
 #include "wf_math.h"
 #include "wf_segment.h"
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 /* WLED FX.cpp:87 keeps one file-static pseudo random generator that every effect
  * shares, so that saving and restoring its seed inside an effect leaves the same
@@ -37,5 +36,4 @@ void blink(Segment &seg, uint32_t color1, uint32_t color2, bool strobe, bool do_
 // Mark Kriegsman.
 void mode_colorwaves_pride_base(Segment &seg, bool is_pride_2015);
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

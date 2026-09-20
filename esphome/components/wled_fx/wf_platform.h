@@ -7,8 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 // Uniformly distributed 32 bit value, from the hardware RNG behind random_uint32().
 uint32_t platform_random_u32();
@@ -21,5 +20,4 @@ uint32_t platform_millis();
 void *platform_alloc(size_t size);
 void platform_free(void *ptr);
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

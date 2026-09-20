@@ -4,8 +4,7 @@
 #include "esphome/components/light/addressable_light_effect.h"
 #include "wf_engine.h"
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 /* Addressable light front end. The canvas is width x height; for a plain strip
  * that is size() x 1. A matrix wired as one strip is described with width, height
@@ -49,5 +48,4 @@ class WledFxLightEffect : public light::AddressableLightEffect {
   bool ready_{false};
 };
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

@@ -6,8 +6,7 @@
 #include <cmath>
 #include <cstring>
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 namespace {
 
@@ -160,7 +159,11 @@ void Segment::set_pixel_color(int n, uint32_t c) const {
         } else {
           const float r = static_cast<float>(n);
           const float step = 1.5707963f / (2.8284f * r + 4);
-          for (float rad = 0.0f; rad <= (1.5707963f / 2) + step / 2; rad += step) {
+          // WLED walks rad from 0 while rad <= pi/4 + step/2; an integer counter
+          // reaches the same samples without accumulating the increment.
+          const int steps = static_cast<int>(((1.5707963f / 2) + step / 2) / step);
+          for (int s = 0; s <= steps; s++) {
+            const float rad = static_cast<float>(s) * step;
             const int x = static_cast<int>(std::lround(sin_approx(rad) * r));
             const int y = static_cast<int>(std::lround(cos_approx(rad) * r));
             this->set_pixel_color_xy(x, y, c);
@@ -254,8 +257,8 @@ void Segment::set_pixel_color(int n, uint32_t c) const {
         closest_edge_idx += 2;
         const int max_i = pinwheel_length(vw, vh) - 1;
         // Draw the first ray unless the previous ray was adjacent, wrap included.
-        const bool draw_first = !(this->prev_rays_[0] == n - 1 || (n == 0 && this->prev_rays_[0] == max_i));
-        const bool draw_last = !(this->prev_rays_[0] == n + 1 || (n == max_i && this->prev_rays_[0] == 0));
+        const bool draw_first = this->prev_rays_[0] != n - 1 && (n != 0 || this->prev_rays_[0] != max_i);
+        const bool draw_last = this->prev_rays_[0] != n + 1 && (n != max_i || this->prev_rays_[0] != 0);
         for (int idx = 0; idx < line_length[long_line_idx] * 2;) {
           const int x1 = line_coords[0][idx];
           const int x2 = line_coords[1][idx];
@@ -767,5 +770,4 @@ uint32_t Segment::color_from_palette(uint16_t i, bool mapping, bool moving, uint
   return palcol.color32;
 }
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

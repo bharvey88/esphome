@@ -19,8 +19,7 @@
 #include "wf_math.h"
 #include "wf_palettes.h"
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 // How a 1D effect is laid out on a 2D canvas. Same numbering as WLED's
 // mapping1D2D_t so the metadata key m12 carries over unchanged.
@@ -113,7 +112,7 @@ class Segment {
   const CRGBPalette16 &palette_ref() const { return this->current_palette_; }
   bool palette_solid_wrap() const { return this->palette_blend == 1 || this->palette_blend == 3; }
   bool palette_moving_wrap() const {
-    return !(this->palette_blend == 2 || (this->palette_blend == 0 && this->speed == 0));
+    return this->palette_blend != 2 && (this->palette_blend != 0 || this->speed != 0);
   }
   uint32_t color_from_palette(uint16_t i, bool mapping, bool moving, uint8_t mcol, uint8_t pbri = 255) const;
   uint32_t color_wheel(uint8_t pos) const;
@@ -240,5 +239,4 @@ class Segment {
   mutable int prev_rays_[2]{0x7FFFFFFF, 0x7FFFFFFF};
 };
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

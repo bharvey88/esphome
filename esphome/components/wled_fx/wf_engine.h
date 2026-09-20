@@ -10,8 +10,7 @@
 #include "wf_registry.h"
 #include "wf_segment.h"
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 // Which segment fields the user pinned in YAML or at runtime. Anything not pinned
 // is refilled from the effect's own metadata defaults when the effect changes.
@@ -72,5 +71,4 @@ class Engine {
   uint16_t overrides_{0};
 };
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

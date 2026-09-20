@@ -12,8 +12,7 @@
 
 #include "wf_effects.h"
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 /* The bodies below keep WLED's own local variable names so a future WLED
  * release can be diffed against them. Function signatures, types and members
@@ -108,5 +107,4 @@ void mode_colorwaves_pride_base(Segment &seg, bool is_pride_2015) {
 
 // NOLINTEND(readability-identifier-naming)
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

@@ -12,8 +12,7 @@
 
 #include "wf_color.h"
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 // Palette ID layout, identical to WLED:
 //   0             "Default", resolves to the effect's own default palette
@@ -56,5 +55,4 @@ class RandomPalette {
   bool started_{false};
 };
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx

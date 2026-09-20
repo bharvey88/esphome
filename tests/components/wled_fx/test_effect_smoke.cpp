@@ -70,9 +70,9 @@ TEST(EffectSmoke, EveryPaletteRunsUnderEveryEffect) {
   ASSERT_TRUE(engine.init(16, 16));
   for (size_t index = 0; index < EffectRegistry::count(); index++) {
     ASSERT_TRUE(engine.set_effect_index(index));
-    for (uint8_t pal = 0; pal < palette_count(); pal++) {
-      engine.set_palette(pal);
-      engine.render(pal * 33 + 1);
+    for (size_t pal = 0; pal < palette_count(); pal++) {
+      engine.set_palette(static_cast<uint8_t>(pal));
+      engine.render(static_cast<uint32_t>(pal) * 33 + 1);
     }
     EXPECT_TRUE(engine.canvas().guards_intact()) << "effect " << index;
   }

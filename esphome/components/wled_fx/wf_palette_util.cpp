@@ -11,8 +11,7 @@
 
 #include "wf_palettes.h"
 
-namespace esphome {
-namespace wled_fx {
+namespace esphome::wled_fx {
 
 const char *const PALETTE_NAMES[] = {
     "Default",     "* Random Cycle", "* Color 1",     "* Colors 1&2", "* Color Gradient", "* Colors Only", "Party",
@@ -205,5 +204,4 @@ void RandomPalette::step(uint32_t now) {
   nblendPaletteTowardPalette(this->current_, this->target_, 48);
 }
 
-}  // namespace wled_fx
-}  // namespace esphome
+}  // namespace esphome::wled_fx
