@@ -10,6 +10,7 @@ import esphome.config_validation as cv
 from esphome.const import (
     CONF_ADDRESS,
     CONF_BATTERY_LEVEL,
+    CONF_BLUE,
     CONF_BUTTON,
     CONF_CARRIER_FREQUENCY,
     CONF_CHANNEL,
@@ -24,6 +25,7 @@ from esphome.const import (
     CONF_FAMILY,
     CONF_FAN_MODE,
     CONF_FORCE_UPDATE,
+    CONF_GREEN,
     CONF_GROUP,
     CONF_HUMIDITY,
     CONF_ID,
@@ -37,8 +39,10 @@ from esphome.const import (
     CONF_ONE,
     CONF_PROTOCOL,
     CONF_PULSE_LENGTH,
+    CONF_RANDOM,
     CONF_RC_CODE_1,
     CONF_RC_CODE_2,
+    CONF_RED,
     CONF_REPEAT,
     CONF_SECOND,
     CONF_SOURCE,
@@ -73,6 +77,9 @@ CONF_CONTROL_IN_KEY = "control_in_key"
 CONF_ROLLING_CODE = "rolling_code"
 CONF_EXTENSION = "extension"
 CONF_REMOTE_ID = "remote_id"
+CONF_ATTACK = "attack"
+CONF_HOLD = "hold"
+CONF_RELEASE = "release"
 
 ns = remote_base_ns = cg.esphome_ns.namespace("remote_base")
 RemoteProtocol = ns.class_("RemoteProtocol")
@@ -2980,4 +2987,71 @@ register_protocol_action(
     (CONF_REMOTE_ID, "remote_id", cg.uint32),
     (CONF_CHANNELS, "channels", cg.uint16),
     (CONF_COMMAND, "command", cg.uint8),
+)
+
+
+# PixMob
+(
+    PixMobData,
+    PixMobBinarySensor,
+    PixMobTrigger,
+    _,
+    PixMobDumper,
+) = declare_protocol("PixMob")
+
+PIXMOB_SCHEMA = cv.Schema(
+    {
+        cv.Required(CONF_RED): cv.uint8_t,
+        cv.Required(CONF_GREEN): cv.uint8_t,
+        cv.Required(CONF_BLUE): cv.uint8_t,
+        cv.Optional(CONF_GROUP, default=0): cv.int_range(min=0, max=31),
+        cv.Optional(CONF_ATTACK, default=0): cv.int_range(min=0, max=7),
+        cv.Optional(CONF_HOLD, default=7): cv.int_range(min=0, max=7),
+        cv.Optional(CONF_RELEASE, default=2): cv.int_range(min=0, max=7),
+        cv.Optional(CONF_RANDOM, default=0): cv.int_range(min=0, max=7),
+    }
+)
+
+
+@register_binary_sensor("pixmob", PixMobBinarySensor, PIXMOB_SCHEMA)
+def pixmob_binary_sensor(var: MockObj, config: ConfigType) -> None:
+    cg.add(
+        var.set_data(
+            cg.StructInitializer(
+                PixMobData,
+                ("red", config[CONF_RED]),
+                ("green", config[CONF_GREEN]),
+                ("blue", config[CONF_BLUE]),
+                ("group", config[CONF_GROUP]),
+                ("attack", config[CONF_ATTACK]),
+                ("hold", config[CONF_HOLD]),
+                ("release", config[CONF_RELEASE]),
+                ("random", config[CONF_RANDOM]),
+            )
+        )
+    )
+
+
+@register_trigger("pixmob", PixMobTrigger, PixMobData)
+def pixmob_trigger(var: MockObj, config: ConfigType) -> None:
+    """The trigger takes no options beyond the automation."""
+
+
+@register_dumper("pixmob", PixMobDumper)
+def pixmob_dumper(var: MockObj, config: ConfigType) -> None:
+    """The dumper takes no options."""
+
+
+register_protocol_action(
+    "pixmob",
+    "PixMob",
+    PIXMOB_SCHEMA,
+    (CONF_RED, "red", cg.uint8),
+    (CONF_GREEN, "green", cg.uint8),
+    (CONF_BLUE, "blue", cg.uint8),
+    (CONF_GROUP, "group", cg.uint8),
+    (CONF_ATTACK, "attack", cg.uint8),
+    (CONF_HOLD, "hold", cg.uint8),
+    (CONF_RELEASE, "release", cg.uint8),
+    (CONF_RANDOM, "random", cg.uint8),
 )

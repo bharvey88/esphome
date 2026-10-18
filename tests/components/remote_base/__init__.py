@@ -22,6 +22,7 @@ def override_manifest(manifest: ComponentManifestOverride) -> None:
             "pioneer_wyt",
             "drayton",
             "panasonic",
+            "pixmob",
         ):
             request_protocol(protocol)
 
